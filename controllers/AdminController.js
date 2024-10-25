@@ -172,7 +172,7 @@ const HandleVerfiyStore = async (req, res) => {
 const HandleGetAllStores = async (req, res) => {
     try {
         const { id } = req.params;
-        const { page = 1, limit = 10 } = req.query;
+        const { page = 1, limit = 5 } = req.query;
 
         const findUser = await User.findById(id) || await StoreOwnerModel.findById(id) || await AdminSchema.findById(id);
 
@@ -182,27 +182,19 @@ const HandleGetAllStores = async (req, res) => {
 
         if (findUser.role.includes('Admin')) {
 
-            const findStores = await StoreOwnerModel.find().limit(limit * 1)
+            // const findStores = await StoreOwnerModel.find().limit(limit * 1)
+            //     .skip((page - 1) * limit)
+            //     .exec();
+            // const totalPages = await StoreOwnerModel.countDocuments();
+            // if (findStores.length === 0) {
+            //     return res.status(404).json({ message: "No Stores Found" });
+            // }
+
+
+            const findStores = await StoreOwnerModel.find({ verified: "Pending" }).limit(limit * 1)
                 .skip((page - 1) * limit)
                 .exec();
-            const totalPages = await StoreOwnerModel.countDocuments();
-            if (findStores.length === 0) {
-                return res.status(404).json({ message: "No Stores Found" });
-            }
-            return res.status(200).json({
-                stores: findStores, totalPages: Math.ceil(totalPages / limit),
-                currentPage: Number(page),
-            });
-
-        } else if (findUser.role.includes('StoreOwner')) {
-
-            return res.status(401).json({ stores: "Unauthorized Request" });
-
-        } else {
-            const findStores = await StoreOwnerModel.find().limit(limit * 1)
-                .skip((page - 1) * limit)
-                .exec();
-            const totalPages = await StoreOwnerModel.countDocuments();
+            const totalPages = await StoreOwnerModel.countDocuments({ verified: "Pending" });
             if (findStores.length === 0) {
                 return res.status(404).json({ message: "No Stores Found" });
             }
@@ -210,6 +202,14 @@ const HandleGetAllStores = async (req, res) => {
                 stores: findStores, totalPages: Math.ceil(totalPages / limit),
                 currentPage: Number(page),
             });
+
+
+        } else if (findUser.role.includes('StoreOwner')) {
+
+            return res.status(401).json({ stores: "Unauthorized Request" });
+
+        } else {
+            res.status(401).json({ stores: "Invalid Request" });
         }
 
     } catch (error) {

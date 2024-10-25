@@ -27,7 +27,8 @@ const HandleSignupStore = async (req, res) => {
             dob,
             ssn_last_4,
             cardID,
-            tokenID
+            tokenID,
+            categories
         } = req.body;
 
         // console.log(JSON.stringify(dob));
@@ -121,6 +122,7 @@ const HandleSignupStore = async (req, res) => {
             identity_back: back.id,
             identity_front: front.id,
             ssn_last_4,
+            categories
         })
 
         const fomrattedDob = dob.split("-");
