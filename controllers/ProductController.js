@@ -56,6 +56,8 @@ const HandleCreateProduct = async (req, res) => {
         const galleryImages = req?.files?.galleryImages;
         const imageUrls = [];
 
+        console.log(imageUrls, galleryImages, productImage, uploadResult)
+
         if (Array.isArray(galleryImages)) {
             for (const image of galleryImages) {
                 const galleryUploadResult = await cloudinary.uploader.upload(image?.tempFilePath);

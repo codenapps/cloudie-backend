@@ -16,6 +16,9 @@ import NotificationsRoutes from "./routes/NotificationRoutes.js";
 import GlobalRoutes from "./routes/GlobalRoutes/GlobalRoutes.js";
 import SubscriptionRoutes from "./routes/SubscriptionRoutes.js";
 import ConnectionsRoutes from "./routes/ConnectionsRoutes.js";
+import CartRoute from "./routes/CartRoute.js"
+import AddressRoutes from "./routes/AddressRoutes.js"
+import PaymentRoutes from "./routes/PaymentRoutes.js"
 import cookieParser from "cookie-parser";
 import PlanExpirationHelper from "./utils/PlanExpirationHelper.js";
 import { Server } from "socket.io";
@@ -64,6 +67,11 @@ app.use("/api/connections", ConnectionsRoutes)
 
 app.use("/api/category", CategoryRoutes)
 app.use("/api/products", ProductRoutes)
+
+//Add to cart
+app.use('/api/cart', CartRoute);
+app.use('/api/address', AddressRoutes);
+app.use('/api/payment', PaymentRoutes);
 
 // Notifications 
 app.use("/api/notifications", NotificationsRoutes)
