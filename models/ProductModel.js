@@ -86,8 +86,8 @@ const ProductModel = new Schema({
     },
     status: {
         type: [String],
-        enum: ['Active', 'Draft'],
-        default: ['Active']
+        enum: ['Active', 'Draft', 'Completed'],
+        default: ['In Progress']
     }
 
 }, { timestamps: true });

@@ -1,7 +1,5 @@
 import Payment from '../models/PaymentModel.js';
-import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+import stripe from "../utils/StripeConfig.js";
 
 const createPaymentIntent = async (req, res) => {
     const { userId, amount, currency } = req.body;

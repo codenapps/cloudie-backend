@@ -570,9 +570,51 @@ const HandleDeleteProduct = async (req, res) => {
     }
 }
 
+const HandleGetBestSellers = async (req, res) => {
+    try {
+        const { limit = 10 } = req.query;
+
+        const parsedLimit = parseInt(limit);
+        if (isNaN(parsedLimit) || parsedLimit <= 0) {
+            return res.status(400).json({ message: 'Invalid limit parameter. It must be a positive integer.' });
+        }
+
+        const bestSellers = await ProductModel.find({ status: 'Active' })
+            .populate({
+                path: 'category',
+                model: 'categories',
+            })
+            .populate({
+                path: 'storeID',
+                model: 'StoreOwner',
+                select: '-password',
+            })
+            .exec();
+
+        if (bestSellers.length === 0) {
+            return res.status(404).json({ message: 'No best-selling products found.' });
+        }
+
+        if (bestSellers.length > parsedLimit) {
+            bestSellers.sort((a, b) => b.salesCount - a.salesCount);
+        }
+
+        const result = bestSellers.slice(0, parsedLimit);
+        res.status(200).json(result);
+
+    } catch (error) {
+        console.error('Error fetching best sellers:', error);
+        if (error.name === 'MongoError') {
+            return res.status(500).json({ message: 'Database error occurred', error });
+        }
+        res.status(500).json({ message: 'Internal server error', error });
+    }
+};
+
 export {
     HandleCreateProduct,
     HandleUpdateProduct,
     HandleGetProducts,
-    HandleDeleteProduct
+    HandleDeleteProduct,
+    HandleGetBestSellers
 }
