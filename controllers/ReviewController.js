@@ -1,6 +1,6 @@
-import ReviewModel from '../models/reviewModel.js';
-import ProductModel from '../models/productModel.js';
-import UserModel from '../models/userModel.js';
+import ReviewModel from '../models/ReviewModel.js';
+import ProductModel from '../models/ProductModel.js';
+import UserModel from '../models/User.js';
 
 export const createReview = async (req, res) => {
     try {
@@ -56,3 +56,8 @@ export const getProductReviews = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+export default {
+    getProductReviews,
+    createReview
+}
