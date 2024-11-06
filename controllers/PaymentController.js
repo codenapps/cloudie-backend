@@ -14,9 +14,12 @@ const createPaymentIntent = async (req, res) => {
             userId,
             amount,
             currency: currency || 'usd',
-            paymentStatus: 'pending',
+            // paymentStatus,
             clientSecret: paymentIntent.client_secret
         });
+
+        console.log("-----------",payment);
+        
 
         await payment.save();
 
