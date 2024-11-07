@@ -19,13 +19,13 @@ import ConnectionsRoutes from "./routes/ConnectionsRoutes.js";
 import CartRoute from "./routes/CartRoute.js"
 import AddressRoutes from "./routes/AddressRoutes.js"
 import PaymentRoutes from "./routes/PaymentRoutes.js"
+import ReviewRoutes from "./routes/ReviewRoutes.js"
 import orderRoutes from './routes/orderRoutes.js';
 import cookieParser from "cookie-parser";
 import PlanExpirationHelper from "./utils/PlanExpirationHelper.js";
 import { Server } from "socket.io";
 import { createServer } from "http";
 import { ChatSocket } from "./sockets/Chat.js";
-
 
 const app = express();
 dotenv.config();
@@ -79,6 +79,8 @@ app.use("/api/notifications", NotificationsRoutes)
 
 //order
 app.use('/order/api', orderRoutes);
+//Review
+app.use("/api/review", ReviewRoutes)
 
 app.get('/', (req, res) => {
     res.send("Hello World")
