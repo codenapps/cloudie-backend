@@ -38,7 +38,7 @@ PlanExpirationHelper();
 const httpServer = createServer(app);
 
 app.use(cors({
-    origin: "*",
+    origin: "https://cloudie-webapp.vercel.app",
     credentials: true,
     methods: ["POST", "GET", "PATCH", "DELETE"]
 }))
