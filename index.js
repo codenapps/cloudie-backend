@@ -1,5 +1,5 @@
 import express from "express";
-import User from "./routes/User.js"
+import User from "./routes/User.js";
 import cors from "cors";
 import dotenv from "dotenv";
 import { v2 as cloudinary } from "cloudinary";
@@ -16,11 +16,11 @@ import NotificationsRoutes from "./routes/NotificationRoutes.js";
 import GlobalRoutes from "./routes/GlobalRoutes/GlobalRoutes.js";
 import SubscriptionRoutes from "./routes/SubscriptionRoutes.js";
 import ConnectionsRoutes from "./routes/ConnectionsRoutes.js";
-import CartRoute from "./routes/CartRoute.js"
-import AddressRoutes from "./routes/AddressRoutes.js"
-import PaymentRoutes from "./routes/PaymentRoutes.js"
-import ReviewRoutes from "./routes/ReviewRoutes.js"
-import orderRoutes from './routes/orderRoutes.js';
+import CartRoute from "./routes/CartRoute.js";
+import AddressRoutes from "./routes/AddressRoutes.js";
+import PaymentRoutes from "./routes/PaymentRoutes.js";
+import ReviewRoutes from "./routes/ReviewRoutes.js";
+import orderRoutes from './routes/OrderRouter.js';
 import cookieParser from "cookie-parser";
 import PlanExpirationHelper from "./utils/PlanExpirationHelper.js";
 import { Server } from "socket.io";
@@ -41,55 +41,56 @@ app.use(cors({
     origin: "https://cloudie-webapp.vercel.app",
     credentials: true,
     methods: ["POST", "GET", "PATCH", "DELETE"]
-}))
+}));
+
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "https://cloudie-webapp.vercel.app");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    res.header("Access-Control-Allow-Credentials", "true");
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_Cloud,
     api_secret: process.env.CLOUDINARY_API_SECRET,
     api_key: process.env.CLOUDINARY_API_KEY
-})
+});
 
 app.use(fileUpload({
     useTempFiles: true,
     tempFileDir: '/tmp/'
 }));
 
-app.use("/api/global", GlobalRoutes)
-
-app.use("/api/user", User)
-app.use("/api/admin", AdminRoutes)
-app.use("/api/plan", PlanRoutes)
-app.use("/api/store", StoreOwnerRoutes)
-app.use("/api/subsciption", SubscriptionRoutes)
-app.use("/api/riders", RiderRoutes)
-
-app.use("/api/connections", ConnectionsRoutes)
-
-
-app.use("/api/category", CategoryRoutes)
-app.use("/api/products", ProductRoutes)
-
-//Add to cart
+app.use("/api/global", GlobalRoutes);
+app.use("/api/user", User);
+app.use("/api/admin", AdminRoutes);
+app.use("/api/plan", PlanRoutes);
+app.use("/api/store", StoreOwnerRoutes);
+app.use("/api/subsciption", SubscriptionRoutes);
+app.use("/api/riders", RiderRoutes);
+app.use("/api/connections", ConnectionsRoutes);
+app.use("/api/category", CategoryRoutes);
+app.use("/api/products", ProductRoutes);
 app.use('/api/cart', CartRoute);
 app.use('/api/address', AddressRoutes);
 app.use('/api/payment', PaymentRoutes);
-
-// Notifications 
-app.use("/api/notifications", NotificationsRoutes)
-
-//order
+app.use("/api/notifications", NotificationsRoutes);
 app.use('/order/api', orderRoutes);
-//Review
-app.use("/api/review", ReviewRoutes)
+app.use("/api/review", ReviewRoutes);
 
 app.get('/', (req, res) => {
-    res.send("Hello World")
-})
-app.use(ErrorHandler)
+    res.send("Hello World");
+});
+
+app.use(ErrorHandler);
 
 httpServer.listen(process.env.PORT, () => {
-    console.log(`APP Listening To ${process.env.PORT}`)
-})
+    console.log(`APP Listening To ${process.env.PORT}`);
+});
 
 const io = new Server(httpServer, {
     pingTimeout: 60000,
@@ -100,7 +101,4 @@ const io = new Server(httpServer, {
     }
 });
 
-// Sockets 
-
-// @Chat
-ChatSocket(io); 
+ChatSocket(io);

@@ -1,4 +1,4 @@
-import Order from '../models/Order.js';
+import CartModel from '../models/CartModel.js';
 
 export const getUserOrders = async (req, res) => {
     const { userId } = req.params;
@@ -8,7 +8,7 @@ export const getUserOrders = async (req, res) => {
         const query = { userId };
         if (status) query.status = status;
 
-        const orders = await Order.find(query).populate('items.productId', 'title price');
+        const orders = await CartModel.find(query).populate('items.productId', 'title price');
         res.status(200).json(orders);
     } catch (error) {
         console.error('Error retrieving orders:', error);
