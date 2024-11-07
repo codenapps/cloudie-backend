@@ -19,6 +19,7 @@ import ConnectionsRoutes from "./routes/ConnectionsRoutes.js";
 import CartRoute from "./routes/CartRoute.js"
 import AddressRoutes from "./routes/AddressRoutes.js"
 import PaymentRoutes from "./routes/PaymentRoutes.js"
+import orderRoutes from './routes/orderRoutes.js';
 import cookieParser from "cookie-parser";
 import PlanExpirationHelper from "./utils/PlanExpirationHelper.js";
 import { Server } from "socket.io";
@@ -75,6 +76,9 @@ app.use('/api/payment', PaymentRoutes);
 
 // Notifications 
 app.use("/api/notifications", NotificationsRoutes)
+
+//order
+app.use('/order/api', orderRoutes);
 
 app.get('/', (req, res) => {
     res.send("Hello World")
