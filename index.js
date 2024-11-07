@@ -91,7 +91,7 @@ httpServer.listen(process.env.PORT, () => {
 const io = new Server(httpServer, {
     pingTimeout: 60000,
     cors: {
-        origin: "*",
+        origin: "https://cloudie-webapp.vercel.app",
         methods: ['GET', "POST", "PUT", "DELETE", "PATCH"],
         credentials: true
     }
