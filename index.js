@@ -94,13 +94,15 @@ const io = new Server(httpServer, {
     }
 });
 
-ChatSocket(io);
 
 app.get('/', (req, res) => {
     res.send("Hello World");
 });
 
-httpServer.listen(process.env.PORT, () => {
-    console.log(`APP Listening To ${process.env.PORT}`);
+const port = process.env.PORT || 8000;
+
+httpServer.listen(port, () => {
+    console.log(`APP Listening To ${port}`);
 });
 
+ChatSocket(io);
