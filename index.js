@@ -82,15 +82,8 @@ app.use("/api/notifications", NotificationsRoutes);
 app.use('/order/api', orderRoutes);
 app.use("/api/review", ReviewRoutes);
 
-app.get('/', (req, res) => {
-    res.send("Hello World");
-});
-
 app.use(ErrorHandler);
 
-httpServer.listen(process.env.PORT, () => {
-    console.log(`APP Listening To ${process.env.PORT}`);
-});
 
 const io = new Server(httpServer, {
     pingTimeout: 60000,
@@ -102,3 +95,12 @@ const io = new Server(httpServer, {
 });
 
 ChatSocket(io);
+
+app.get('/', (req, res) => {
+    res.send("Hello World");
+});
+
+httpServer.listen(process.env.PORT, () => {
+    console.log(`APP Listening To ${process.env.PORT}`);
+});
+
