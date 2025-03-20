@@ -7,7 +7,7 @@ let transporter = nodemailer.createTransport({
     auth: {
         user: 'team@codenapps.com',
         // pass: 'yebb sizs pfsx tuos'
-        pass: process.env.SMTP_PASS
+        pass: 'Security2025@'
     },
     tls: { rejectUnauthorized: false }
 });
