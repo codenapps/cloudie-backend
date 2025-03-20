@@ -1,13 +1,12 @@
 import nodemailer from 'nodemailer'
 
 let transporter = nodemailer.createTransport({
-    host: 'smtp.mailgun.org',
+    host: 'smtp.gmail.com',
     port: 465,
     secure: true, // use SSL if required
     auth: {
-        user: 'team@codenapps.com',
-        // pass: 'yebb sizs pfsx tuos'
-        pass: 'Security2025@'
+        user: 'furquanrahim@innoversol.com',
+        pass: 'yebb sizs pfsx tuos'
     },
     tls: { rejectUnauthorized: false }
 });
