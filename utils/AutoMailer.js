@@ -1,6 +1,6 @@
 import transporter from "./NodeMailerConfig.js";
 
-const autoMailer = ({ from = 'team@codenapps.com', to, subject, message }) => {
+const autoMailer = ({ from = 'jackhanry9013@gmail.com', to, subject, message }) => {
     try {
         const mailOptions = {
             from: from,
