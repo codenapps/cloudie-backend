@@ -83,14 +83,16 @@ const HandleSignupUser = async (req, res) => {
             isOtpVerified: newUser.isOtpVerified
         }
 
-        autoMailer(
-            {
+        try {
+            autoMailer({
                 to: newUser.email,
                 subject: 'OTP VERIFICATION CODE',
-                message: `<h3>Your OTP Verification Code Is: </h3>
-                <h3> ${newUser.OtpCode}</h4>`
-            }
-        );
+                message: `<h3>Your OTP Verification Code Is: </h3><h3>${newUser.OtpCode}</h3>`
+            });
+        } catch (error) {
+            console.log('Error sending OTP email:', error);
+            return res.status(500).json({ message: "Failed to send OTP email" });
+        }
 
         res.status(201).json({ message: "Registered Successfully", token: token });
 
