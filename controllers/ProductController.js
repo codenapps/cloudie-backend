@@ -28,6 +28,8 @@ const HandleCreateProduct = async (req, res) => {
         } = req.body
 
         let category = Array.isArray(req.body.category) ? req.body.category : [req.body.category];
+        console.log(category, "category");
+
 
         // Clean up the slug
         const cleanedSlug = slug.toLowerCase()
@@ -144,6 +146,9 @@ const HandleUpdateProduct = async (req, res) => {
 
         let category = Array.isArray(req.body.category) ? req.body.category : [req.body.category];
 
+        console.log("categorgdhfghy", category);
+
+
         const cleanedSlug = slug.toLowerCase()
             .replace(/\s+/g, '-')
             .replace(/[^\w-]+/g, '')
@@ -206,7 +211,7 @@ const HandleUpdateProduct = async (req, res) => {
         product.desc = desc || product.desc;
         product.slug = cleanedSlug || product.slug;
         product.isVariable = isVariable || product.isVariable;
-        product.category = Array.isArray(category) && category.length !== 0 ? [findDefaultCategory._id] : category;
+        product.category = category;
         product.productImage = uploadResult.secure_url || product.productImage;
         product.galleryImages = imageUrls.length === 0 ? product.galleryImages : imageUrls;
         product.netWeight = netWeight || product.netWeight;

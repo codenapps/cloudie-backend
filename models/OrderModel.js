@@ -1,17 +1,41 @@
 import mongoose from 'mongoose';
 
 const OrderSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true },
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user',
+        required: true
+    },
     items: [
         {
-            productId: { type: mongoose.Schema.Types.ObjectId, ref: 'products', required: true },
-            quantity: { type: Number, required: true },
-            price: { type: Number, required: true } // capture price at purchase time
+            productId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'products',
+                required: true
+            },
+            quantity: {
+                type: Number,
+                required: true
+            },
+            price: {
+                type: Number,
+                required: true
+            }
         }
     ],
-    totalAmount: { type: Number, required: true },
-    status: { type: String, enum: ['Pending', 'Shipped', 'Delivered', 'Cancelled'], default: 'Pending' },
-    orderDate: { type: Date, default: Date.now },
+    totalAmount: {
+        type: Number,
+        required: true
+    },
+    status: {
+        type: String,
+        enum: ['Pending', 'Shipped', 'Delivered', 'Cancelled'],
+        default: 'Pending'
+    },
+    // orderDate: {
+    //     type: Date,
+    //     default: Date.now
+    // },
 }, { timestamps: true });
 
 export default mongoose.model('Order', OrderSchema);

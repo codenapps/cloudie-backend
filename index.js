@@ -81,6 +81,7 @@ app.use('/api/payment', PaymentRoutes);
 app.use("/api/notifications", NotificationsRoutes);
 app.use('/order/api', orderRoutes);
 app.use("/api/review", ReviewRoutes);
+app.use("/api/orders", orderRoutes);
 
 app.use(ErrorHandler);
 
