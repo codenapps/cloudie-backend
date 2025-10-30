@@ -106,6 +106,26 @@ const HandleGetUserOrders = async (req, res) => {
     }
 };
 
+const HandleGetUserOrdersStore = async (req, res) => {
+    const { storeID } = req.params;
+
+    try {
+        const orders = await Order.find({ "items.storeID": storeID })
+            .populate("items.productId", "title price discountPrice productImage")
+            .sort({ createdAt: -1 });
+
+        if (!orders.length) {
+            return res.status(200).json({ message: "No orders found for this store." });
+        }
+
+        res.status(200).json(orders);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error retrieving store orders", error });
+    }
+};
+
+
 const HandleGetSingleOrder = async (req, res) => {
     const { orderId } = req.params;
     try {
@@ -270,5 +290,5 @@ const HandleGetRiderOrders = async (req, res) => {
 
 
 export {
-    HandlePlaceOrder, HandleGetUserOrders, HandleGetSingleOrder, HandleUpdateOrderStatus, HandleAssignRider, HandleRiderAccept, HandleRiderReject, HandleGetRiderOrders,
+    HandlePlaceOrder, HandleGetUserOrders, HandleGetUserOrdersStore, HandleGetSingleOrder, HandleUpdateOrderStatus, HandleAssignRider, HandleRiderAccept, HandleRiderReject, HandleGetRiderOrders,
 };

@@ -2,6 +2,7 @@ import express from "express";
 import {
     HandlePlaceOrder,
     HandleGetUserOrders,
+    HandleGetUserOrdersStore,
     HandleGetSingleOrder,
     HandleUpdateOrderStatus,
     HandleAssignRider,
@@ -15,6 +16,7 @@ const router = express.Router();
 // Order routes
 router.post("/:userId/place", HandlePlaceOrder);
 router.get("/user/:userId", HandleGetUserOrders);
+router.get("/store/:storeID", HandleGetUserOrdersStore);
 router.get("/:orderId", HandleGetSingleOrder);
 router.patch("/:orderId/status", HandleUpdateOrderStatus);
 
