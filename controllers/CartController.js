@@ -13,15 +13,19 @@ const HandleAddToCart = async (req, res) => {
             return res.status(404).json({ message: 'Product not found' });
         }
 
+        console.log(product, "prodyuct");
+
+
         let cart = await Cart.findOne({ userId }).session(session);
+        const storeID = product.storeID;
         if (!cart) {
-            cart = new Cart({ userId, items: [{ productId, stock }] });
+            cart = new Cart({ userId, items: [{ productId, stock, storeID }] });
         } else {
             const itemIndex = cart.items.findIndex((item) => item.productId.toString() === productId);
             if (itemIndex > -1) {
                 cart.items[itemIndex].stock += stock;
             } else {
-                cart.items.push({ productId, stock });
+                cart.items.push({ productId, stock, storeID });
             }
         }
 

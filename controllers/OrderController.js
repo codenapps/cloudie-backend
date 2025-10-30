@@ -29,6 +29,7 @@ const HandlePlaceOrder = async (req, res) => {
                 quantity: item.stock,
                 price: unitPrice,
                 subtotal,
+                storeId: product.storeID,
             };
         });
 
@@ -45,6 +46,9 @@ const HandlePlaceOrder = async (req, res) => {
                 price,
             })),
             totalAmount,
+            message,
+            latitude,
+            longitude,
             status: "Pending",
         });
 
@@ -84,7 +88,7 @@ const HandleGetUserOrders = async (req, res) => {
 
     try {
         const orders = await Order.find({ userId })
-            .populate("items.productId", "title price discountPrice")
+            .populate("items.productId", "title price discountPrice productImage")
             .sort({ createdAt: -1 });
 
         if (!orders.length) {

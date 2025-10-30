@@ -21,6 +21,7 @@ import AddressRoutes from "./routes/AddressRoutes.js";
 import PaymentRoutes from "./routes/PaymentRoutes.js";
 import ReviewRoutes from "./routes/ReviewRoutes.js";
 import orderRoutes from './routes/OrderRouter.js';
+import CardRoutes from './routes/CardRoutes.js';
 import cookieParser from "cookie-parser";
 import PlanExpirationHelper from "./utils/PlanExpirationHelper.js";
 import { Server } from "socket.io";
@@ -82,6 +83,7 @@ app.use("/api/notifications", NotificationsRoutes);
 app.use('/order/api', orderRoutes);
 app.use("/api/review", ReviewRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/cards", CardRoutes);
 
 app.use(ErrorHandler);
 

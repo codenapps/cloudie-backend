@@ -20,7 +20,11 @@ const OrderSchema = new mongoose.Schema({
             price: {
                 type: Number,
                 required: true
-            }
+            },
+            storeID: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'products'
+            },
         }
     ],
     totalAmount: {
@@ -31,6 +35,17 @@ const OrderSchema = new mongoose.Schema({
         type: String,
         enum: ['Pending', "InProgress", 'Assigned', 'Shipped', 'Delivered', 'Cancelled'],
         default: 'Pending'
+    },
+    message: {
+        type: String,
+    },
+    latitude: {
+        type: String,
+        required: true
+    },
+    longitude: {
+        type: String,
+        required: true
     },
     assignedRider: {
         type: mongoose.Schema.Types.ObjectId,
