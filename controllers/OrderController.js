@@ -6,13 +6,14 @@ import RiderModel from "../models/RiderModel.js";
 
 
 const HandlePlaceOrder = async (req, res) => {
+    const { latitude, longitude, message } = req.body;
     const { userId } = req.params;
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
         const cart = await Cart.findOne({ userId })
-            .populate("items.productId", "title price discountPrice stock")
+            .populate("items.productId", "title price discountPrice stock storeID")
             .session(session);
 
         if (!cart || cart.items.length === 0) {
@@ -24,33 +25,36 @@ const HandlePlaceOrder = async (req, res) => {
             const product = item.productId;
             const unitPrice = product.discountPrice || product.price;
             const subtotal = unitPrice * item.stock;
+            console.log(product.storeID, "storeID", product._id, "product");
+
             return {
                 productId: product._id,
                 quantity: item.stock,
                 price: unitPrice,
                 subtotal,
-                storeId: product.storeID,
+                storeID: product.storeID,
             };
         });
-
-        console.log(orderItems, "orderItems");
-
 
         const totalAmount = orderItems.reduce((acc, item) => acc + item.subtotal, 0);
 
         const newOrder = new Order({
             userId,
-            items: orderItems.map(({ productId, quantity, price }) => ({
+            latitude,
+            longitude,
+            message,
+            items: orderItems.map(({ productId, quantity, price, storeID }) => ({
                 productId,
                 quantity,
                 price,
+                storeID
             })),
             totalAmount,
-            message,
-            latitude,
-            longitude,
             status: "Pending",
         });
+
+        console.log(newOrder, "newOrder");
+
 
         await newOrder.save({ session });
 
