@@ -20,7 +20,6 @@ const createPaymentIntent = async (req, res) => {
 
         console.log("-----------",payment);
         
-
         await payment.save();
 
         res.status(201).json({ clientSecret: paymentIntent.client_secret });

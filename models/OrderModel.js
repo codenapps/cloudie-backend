@@ -29,9 +29,20 @@ const OrderSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Pending', 'Shipped', 'Delivered', 'Cancelled'],
+        enum: ['Pending', "InProgress", 'Assigned', 'Shipped', 'Delivered', 'Cancelled'],
         default: 'Pending'
     },
+    assignedRider: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Rider',
+        default: null
+    },
+    rejectedRiders: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Rider'
+        }
+    ]
     // orderDate: {
     //     type: Date,
     //     default: Date.now
