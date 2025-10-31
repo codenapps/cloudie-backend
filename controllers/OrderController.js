@@ -5,9 +5,115 @@ import Product from "../models/ProductModel.js";
 import RiderModel from "../models/RiderModel.js";
 import Card from "../models/CardModel.js";
 import Stripe from 'stripe';
+import Riders from "../models/RiderModel.js";
 
 const stripe = new Stripe("sk_test_51QePvkArP8SrFQvbyuj6Tve2Nw504Ef9beVL24eFCUjgprmGlfnjEQpJkEChOKMlSBeK4vzoed5OJ3oUsDZeYvzC00oVh0ZEe1");
 
+
+// const HandlePlaceOrder = async (req, res) => {
+//     const { latitude, longitude, message } = req.body;
+//     const { userId } = req.params;
+//     const session = await mongoose.startSession();
+//     session.startTransaction();
+
+//     try {
+//         const cart = await Cart.findOne({ userId })
+//             .populate("items.productId", "title price discountPrice stock storeID")
+//             .session(session);
+
+//         if (!cart || cart.items.length === 0) {
+//             await session.abortTransaction();
+//             return res.status(404).json({ message: "No items in cart" });
+//         }
+
+//         const orderItems = cart.items.map((item) => {
+//             const product = item.productId;
+//             const unitPrice = product.discountPrice || product.price;
+//             const subtotal = unitPrice * item.stock;
+
+//             return {
+//                 productId: product._id,
+//                 quantity: item.stock,
+//                 price: unitPrice,
+//                 subtotal,
+//                 storeID: product.storeID,
+//             };
+//         });
+
+//         const totalAmount = orderItems.reduce((acc, item) => acc + item.subtotal, 0);
+
+//         const card = await Card.findOne({ userId, isDefault: true });
+//         if (!card) {
+//             await session.abortTransaction();
+//             return res.status(400).json({ message: "No default card found. Please add a card first." });
+//         }
+
+//         const paymentIntent = await stripe.paymentIntents.create({
+//             amount: Math.round(totalAmount * 100),
+//             currency: "usd",
+//             customer: card.stripeCustomerId,
+//             payment_method: card.stripePaymentMethodId,
+//             off_session: true,
+//             confirm: true,
+//         });
+
+//         if (paymentIntent.status !== "succeeded") {
+//             await session.abortTransaction();
+//             return res.status(400).json({ message: "Payment failed", paymentIntent });
+//         }
+
+//         const newOrder = new Order({
+//             userId,
+//             latitude,
+//             longitude,
+//             message,
+//             items: orderItems.map(({ productId, quantity, price, storeID }) => ({
+//                 productId,
+//                 quantity,
+//                 price,
+//                 storeID
+//             })),
+//             totalAmount,
+//             status: "InProgress",
+//         });
+
+//         await newOrder.save({ session });
+
+//         for (const item of orderItems) {
+//             await Product.findByIdAndUpdate(
+//                 item.productId,
+//                 { $inc: { stock: -item.quantity } },
+//                 { session }
+//             );
+//         }
+
+//         await Cart.findOneAndUpdate(
+//             { userId },
+//             { $set: { items: [] } },
+//             { session }
+//         );
+
+//         await session.commitTransaction();
+//         session.endSession();
+
+//         res.status(201).json({
+//             message: "Order placed and payment successful",
+//             order: newOrder,
+//             paymentIntent
+//         });
+
+//     } catch (error) {
+//         await session.abortTransaction();
+//         session.endSession();
+//         console.error(error);
+
+//         if (error.type === "StripeCardError") {
+//             return res.status(400).json({ message: error.message });
+//         }
+
+//         res.status(500).json({ message: "Error placing order", error });
+//     }
+// };
 
 const HandlePlaceOrder = async (req, res) => {
     const { latitude, longitude, message } = req.body;
@@ -73,7 +179,7 @@ const HandlePlaceOrder = async (req, res) => {
                 storeID
             })),
             totalAmount,
-            status: "InProgress",
+            status: "Pending",
         });
 
         await newOrder.save({ session });
@@ -92,12 +198,29 @@ const HandlePlaceOrder = async (req, res) => {
             { session }
         );
 
+        const rider = await Riders.findOne({
+            status: "Active",
+            verified: "Accepted"
+        });
+
+        if (rider) {
+            newOrder.riderId = rider._id;
+            newOrder.status = "Assigned";
+            await newOrder.save({ session });
+        } else {
+            newOrder.status = "Pending"; // No active rider
+            await newOrder.save({ session });
+        }
+
         await session.commitTransaction();
         session.endSession();
 
         res.status(201).json({
-            message: "Order placed and payment successful",
+            message: rider ? "Order placed and assigned to rider" : "Order placed. No available rider yet.",
             order: newOrder,
+            rider: rider
+                ? { id: rider._id, username: rider.username, phone: rider.phone, email: rider.email }
+                : null,
             paymentIntent
         });
 
@@ -110,7 +233,7 @@ const HandlePlaceOrder = async (req, res) => {
             return res.status(400).json({ message: error.message });
         }
 
-        res.status(500).json({ message: "Error placing order", error });
+        res.status(500).json({ message: "Error placing order", error: error.message });
     }
 };
 
@@ -215,77 +338,122 @@ const assignOrderToRider = async (orderId) => {
 };
 
 const HandleAssignRider = async (req, res) => {
-    try {
-        const { orderId } = req.params;
+    // try {
+    //     const { orderId } = req.params;
 
-        const rider = await assignOrderToRider(orderId);
+    //     const rider = await Riders.findOne({
+    //         status: "Active",
+    //         verified: "Accepted"
+    //     });
 
-        if (!rider) {
-            const order = await Order.findById(orderId);
-            if (order) {
-                order.status = "Pending";
-                await order.save();
-            }
-            return res.status(200).json({ message: "No available riders. Order is pending" });
-        }
+    //     const order = await Order.findById(orderId);
+    //     if (!order) {
+    //         return res.status(404).json({ message: "Order not found" });
+    //     }
 
-        res.status(200).json({ message: "Order assigned to rider", rider });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
+    //     if (!rider) {
+    //         order.status = "Pending";
+    //         await order.save();
+    //         return res.status(200).json({ message: "No available riders. Order is pending" });
+    //     }
+
+    //     order.riderId = rider._id;
+    //     order.status = "Assigned";
+    //     await order.save();
+
+    //     res.status(200).json({
+    //         message: "Order assigned to rider",
+    //         rider: {
+    //             id: rider._id,
+    //             username: rider.username,
+    //             phone: rider.phone,
+    //             email: rider.email,
+    //         },
+    //         orderId: order._id
+    //     });
+    // } catch (error) {
+    //     console.error(error);
+    //     res.status(500).json({ message: "Internal Server Error", error: error.message });
+    // }
 };
 
 const HandleRiderAccept = async (req, res) => {
-    try {
-        const { orderId, riderId } = req.body;
+    // try {
+    //     const { orderId, riderId } = req.body;
 
-        const order = await Order.findById(orderId);
-        if (!order) return res.status(404).json({ message: "Order not found" });
+    //     const order = await Order.findById(orderId);
+    //     if (!order) return res.status(404).json({ message: "Order not found" });
 
-        if (!order.assignedRider || order.assignedRider.toString() !== riderId) {
-            return res.status(403).json({ message: "This rider is not assigned to the order" });
-        }
+    //     if (!order.assignedRider || order.assignedRider.toString() !== riderId) {
+    //         return res.status(403).json({ message: "This rider is not assigned to the order" });
+    //     }
 
-        order.status = "Shipped";
-        await order.save();
+    //     order.status = "Shipped";
+    //     await order.save();
 
-        res.status(200).json({ message: "Order accepted", order });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
+    //     res.status(200).json({ message: "Order accepted", order });
+    // } catch (error) {
+    //     console.error(error);
+    //     res.status(500).json({ message: "Internal Server Error" });
+    // }
 };
 
 const HandleRiderReject = async (req, res) => {
-    try {
-        const { orderId, riderId } = req.body;
+    // try {
+    //     const { orderId, riderId } = req.body;
 
-        const order = await Order.findById(orderId);
-        if (!order) return res.status(404).json({ message: "Order not found" });
+    //     const order = await Order.findById(orderId);
+    //     if (!order) return res.status(404).json({ message: "Order not found" });
 
-        if (!order.assignedRider || order.assignedRider.toString() !== riderId) {
-            return res.status(403).json({ message: "This rider is not assigned to the order" });
-        }
+    //     if (!order.assignedRider || order.assignedRider.toString() !== riderId) {
+    //         return res.status(403).json({ message: "This rider is not assigned to the order" });
+    //     }
 
-        order.rejectedRiders = order.rejectedRiders || [];
-        order.rejectedRiders.push(riderId);
-        order.assignedRider = null;
-        order.status = "Pending";
-        await order.save();
+    //     order.rejectedRiders = order.rejectedRiders || [];
+    //     order.rejectedRiders.push(riderId);
+    //     order.assignedRider = null;
+    //     order.status = "Pending";
+    //     await order.save();
 
-        const nextRider = await assignOrderToRider(orderId);
+    //     const nextRider = await assignOrderToRider(orderId);
 
-        if (!nextRider) {
-            return res.status(200).json({ message: "Order rejected. No available riders now.", order });
-        }
+    //     if (!nextRider) {
+    //         return res.status(200).json({ message: "Order rejected. No available riders now.", order });
+    //     }
 
-        res.status(200).json({ message: "Order reassigned to next rider", order, nextRider });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
+    //     res.status(200).json({ message: "Order reassigned to next rider", order, nextRider });
+    // } catch (error) {
+    //     console.error(error);
+    //     res.status(500).json({ message: "Internal Server Error" });
+    // }
 };
+
+// const HandleGetRiderOrders = async (req, res) => {
+//     try {
+//         const { riderId } = req.params;
+
+//         if (!mongoose.Types.ObjectId.isValid(riderId)) {
+//             return res.status(400).json({ message: "Invalid Rider ID" });
+//         }
+
+//         const orders = await Order.find({
+//             assignedRider: riderId,
+//             status: { $in: ["Assigned", "Shipped"] },
+//         }).sort({ createdAt: -1 });
+
+//         if (orders.length === 0) {
+//             return res.status(200).json({ message: "No active orders for this rider." });
+//         }
+
+//         res.status(200).json({
+//             totalOrders: orders.length,
+//             orders,
+//         });
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ message: "Internal Server Error" });
+//     }
+// };
 
 const HandleGetRiderOrders = async (req, res) => {
     try {
@@ -296,21 +464,34 @@ const HandleGetRiderOrders = async (req, res) => {
         }
 
         const orders = await Order.find({
-            assignedRider: riderId,
-            status: { $in: ["Assigned", "Shipped"] },
-        }).sort({ createdAt: -1 });
+            riderId: riderId,
+            status: { $in: ["Assigned", "Shipped"] }
+        })
+        .populate("items.productId", "title price discountPrice stock storeID")
+        .populate({
+            path: "riderId",
+            select: "username email role verified status",
+            match: { 
+                verified: { $in: ["Accepted"] },
+                status: { $in: ["Active"] }
+            }
+        })
+        .sort({ createdAt: -1 });
 
-        if (orders.length === 0) {
+        // Filter out orders where riderId didn't match the populate
+        const validOrders = orders.filter(order => order.riderId);
+
+        if (validOrders.length === 0) {
             return res.status(200).json({ message: "No active orders for this rider." });
         }
 
         res.status(200).json({
-            totalOrders: orders.length,
-            orders,
+            totalOrders: validOrders.length,
+            orders: validOrders,
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 };
 
