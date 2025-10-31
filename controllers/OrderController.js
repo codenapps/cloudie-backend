@@ -3,6 +3,10 @@ import Cart from "../models/CartModel.js";
 import Order from "../models/OrderModel.js";
 import Product from "../models/ProductModel.js";
 import RiderModel from "../models/RiderModel.js";
+import Card from "../models/CardModel.js";
+import Stripe from 'stripe';
+
+const stripe = new Stripe("sk_test_51QePvkArP8SrFQvbyuj6Tve2Nw504Ef9beVL24eFCUjgprmGlfnjEQpJkEChOKMlSBeK4vzoed5OJ3oUsDZeYvzC00oVh0ZEe1");
 
 
 const HandlePlaceOrder = async (req, res) => {
@@ -25,7 +29,6 @@ const HandlePlaceOrder = async (req, res) => {
             const product = item.productId;
             const unitPrice = product.discountPrice || product.price;
             const subtotal = unitPrice * item.stock;
-            console.log(product.storeID, "storeID", product._id, "product");
 
             return {
                 productId: product._id,
@@ -37,6 +40,26 @@ const HandlePlaceOrder = async (req, res) => {
         });
 
         const totalAmount = orderItems.reduce((acc, item) => acc + item.subtotal, 0);
+
+        const card = await Card.findOne({ userId, isDefault: true });
+        if (!card) {
+            await session.abortTransaction();
+            return res.status(400).json({ message: "No default card found. Please add a card first." });
+        }
+
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(totalAmount * 100),
+            currency: "usd",
+            customer: card.stripeCustomerId,
+            payment_method: card.stripePaymentMethodId,
+            off_session: true,
+            confirm: true,
+        });
+
+        if (paymentIntent.status !== "succeeded") {
+            await session.abortTransaction();
+            return res.status(400).json({ message: "Payment failed", paymentIntent });
+        }
 
         const newOrder = new Order({
             userId,
@@ -50,11 +73,8 @@ const HandlePlaceOrder = async (req, res) => {
                 storeID
             })),
             totalAmount,
-            status: "Pending",
+            status: "InProgress",
         });
-
-        console.log(newOrder, "newOrder");
-
 
         await newOrder.save({ session });
 
@@ -76,13 +96,20 @@ const HandlePlaceOrder = async (req, res) => {
         session.endSession();
 
         res.status(201).json({
-            message: "Order placed successfully",
+            message: "Order placed and payment successful",
             order: newOrder,
+            paymentIntent
         });
+
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
         console.error(error);
+
+        if (error.type === "StripeCardError") {
+            return res.status(400).json({ message: error.message });
+        }
+
         res.status(500).json({ message: "Error placing order", error });
     }
 };
@@ -124,7 +151,6 @@ const HandleGetUserOrdersStore = async (req, res) => {
         res.status(500).json({ message: "Error retrieving store orders", error });
     }
 };
-
 
 const HandleGetSingleOrder = async (req, res) => {
     const { orderId } = req.params;
