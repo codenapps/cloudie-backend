@@ -52,6 +52,10 @@ const OrderSchema = new mongoose.Schema({
         ref: 'Rider',
         default: null
     },
+    riderUsername: {
+        type: String,
+        default: null
+    },
     rejectedRiders: [
         {
             type: mongoose.Schema.Types.ObjectId,

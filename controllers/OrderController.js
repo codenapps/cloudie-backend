@@ -118,17 +118,19 @@ const stripe = new Stripe("sk_test_51QePvkArP8SrFQvbyuj6Tve2Nw504Ef9beVL24eFCUjg
 const HandlePlaceOrder = async (req, res) => {
     const { latitude, longitude, message } = req.body;
     const { userId } = req.params;
+
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
+        // 1️⃣ Fetch the user's cart
         const cart = await Cart.findOne({ userId })
             .populate("items.productId", "title price discountPrice stock storeID")
             .session(session);
 
         if (!cart || cart.items.length === 0) {
             await session.abortTransaction();
-            return res.status(404).json({ message: "No items in cart" });
+            return res.status(404).json({ message: "Your cart is empty" });
         }
 
         const orderItems = cart.items.map((item) => {
@@ -150,7 +152,9 @@ const HandlePlaceOrder = async (req, res) => {
         const card = await Card.findOne({ userId, isDefault: true });
         if (!card) {
             await session.abortTransaction();
-            return res.status(400).json({ message: "No default card found. Please add a card first." });
+            return res.status(400).json({
+                message: "No default payment card found. Please add or set a default card first.",
+            });
         }
 
         const paymentIntent = await stripe.paymentIntents.create({
@@ -164,7 +168,10 @@ const HandlePlaceOrder = async (req, res) => {
 
         if (paymentIntent.status !== "succeeded") {
             await session.abortTransaction();
-            return res.status(400).json({ message: "Payment failed", paymentIntent });
+            return res.status(400).json({
+                message: "Payment failed",
+                paymentIntent,
+            });
         }
 
         const newOrder = new Order({
@@ -176,9 +183,11 @@ const HandlePlaceOrder = async (req, res) => {
                 productId,
                 quantity,
                 price,
-                storeID
+                storeID,
             })),
             totalAmount,
+            paymentId: paymentIntent.id,
+            paymentStatus: "Paid",
             status: "Pending",
         });
 
@@ -192,48 +201,53 @@ const HandlePlaceOrder = async (req, res) => {
             );
         }
 
-        await Cart.findOneAndUpdate(
-            { userId },
-            { $set: { items: [] } },
-            { session }
-        );
+        await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } }, { session });
 
         const rider = await Riders.findOne({
             status: "Active",
-            verified: "Accepted"
+            verified: "Accepted",
         });
 
         if (rider) {
-            newOrder.riderId = rider._id;
+            newOrder.assignedRider = rider._id;
+            newOrder.riderUsername = rider.username;
             newOrder.status = "Assigned";
-            await newOrder.save({ session });
-        } else {
-            newOrder.status = "Pending"; // No active rider
-            await newOrder.save({ session });
         }
+
+        await newOrder.save({ session });
 
         await session.commitTransaction();
         session.endSession();
 
-        res.status(201).json({
-            message: rider ? "Order placed and assigned to rider" : "Order placed. No available rider yet.",
+        return res.status(201).json({
+            message: rider
+                ? "Order placed successfully and assigned to rider."
+                : "Order placed successfully. Waiting for rider assignment.",
             order: newOrder,
             rider: rider
-                ? { id: rider._id, username: rider.username, phone: rider.phone, email: rider.email }
+                ? {
+                    id: rider._id,
+                    username: rider.username,
+                    phone: rider.phone,
+                    email: rider.email,
+                }
                 : null,
-            paymentIntent
+            paymentIntent,
         });
-
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        console.error(error);
+
+        console.error("Error placing order:", error);
 
         if (error.type === "StripeCardError") {
             return res.status(400).json({ message: error.message });
         }
 
-        res.status(500).json({ message: "Error placing order", error: error.message });
+        return res.status(500).json({
+            message: "An error occurred while placing the order.",
+            error: error.message,
+        });
     }
 };
 
@@ -280,7 +294,7 @@ const HandleGetSingleOrder = async (req, res) => {
     try {
         const order = await Order.findById(orderId).populate(
             "items.productId",
-            "title price discountPrice productImage"
+            "title price discountPrice productImage riderUsername"
         );
         if (!order) return res.status(404).json({ message: "Order not found" });
         console.log(order);
@@ -467,16 +481,16 @@ const HandleGetRiderOrders = async (req, res) => {
             riderId: riderId,
             status: { $in: ["Assigned", "Shipped"] }
         })
-        .populate("items.productId", "title price discountPrice stock storeID")
-        .populate({
-            path: "riderId",
-            select: "username email role verified status",
-            match: { 
-                verified: { $in: ["Accepted"] },
-                status: { $in: ["Active"] }
-            }
-        })
-        .sort({ createdAt: -1 });
+            .populate("items.productId", "title price discountPrice stock storeID")
+            .populate({
+                path: "riderId",
+                select: "username email role verified status",
+                match: {
+                    verified: { $in: ["Accepted"] },
+                    status: { $in: ["Active"] }
+                }
+            })
+            .sort({ createdAt: -1 });
 
         // Filter out orders where riderId didn't match the populate
         const validOrders = orders.filter(order => order.riderId);
