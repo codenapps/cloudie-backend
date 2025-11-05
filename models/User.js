@@ -57,7 +57,15 @@ const UserSchema = new Schema({
         type: [String],
         enum: ['User'],
         default: ['User']
-    }
+    },
+    userLatitude: {
+        type: Number,
+        required: true
+    },
+    userLongitude: {
+        type: Number,
+        required: true
+    },
 }, { timestamps: true });
 
 export default mongoose.model("user", UserSchema);

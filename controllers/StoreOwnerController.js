@@ -7,6 +7,10 @@ import stripe from "../utils/StripeConfig.js";
 import fs from "fs"
 import ProductModel from "../models/ProductModel.js";
 import SubscriptionModel from "../models/SubscriptionModel.js";
+import CategoryModel from "../models/CategoryModel.js";
+import OrderModel from "../models/OrderModel.js";
+import PlanModel from "../models/PlanModel.js";
+import mongoose from "mongoose";
 
 
 // @POST
@@ -508,11 +512,40 @@ const HandleDeleteAccount = async (req, res) => {
     }
 }
 
+const HandleGetStoreDashboard = async (req, res) => {
+    try {
+
+        const { StoreId } = req.params;
+        const storeObjectId = new mongoose.Types.ObjectId(StoreId);
+        const findStores = await StoreOwnerModel.findById(storeObjectId);
+        if (!findStores) {
+            return res.status(404).json({ message: "Admin Not Found" });
+        }
+
+        // const totalRiders = await RiderModel.countDocuments();
+        const listedCategories = await CategoryModel.countDocuments();
+        const totalProducts = await ProductModel.countDocuments({ id: findStores._id });
+        const totalOrders = await OrderModel.countDocuments({ StoreId: storeObjectId });
+        const planName = await SubscriptionModel.find({ id: findStores._id })
+        const plans = planName.planName
+        return res.status(200).json({ totalOrders, products: totalProducts, listedCategories: listedCategories, planName: plans })
+
+        // } else {
+        //     res.status(500).json({ message: "Internal Server Error" })
+        // }
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
 export {
     HandleSignupStore,
     HandleVerifyStoreOtp,
     HandleUpdateStore,
     HandleGetStoreProfile,
     HandleResubmitVerification,
-    HandleDeleteAccount
+    HandleDeleteAccount,
+    HandleGetStoreDashboard
 }

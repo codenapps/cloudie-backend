@@ -189,6 +189,8 @@ const HandlePlaceOrder = async (req, res) => {
             paymentId: paymentIntent.id,
             paymentStatus: "Paid",
             status: "Pending",
+            userLatitude: latitude,
+            userLongitude: longitude,
         });
 
         await newOrder.save({ session });
@@ -276,6 +278,7 @@ const HandleGetUserOrdersStore = async (req, res) => {
     try {
         const orders = await Order.find({ "items.storeID": storeID })
             .populate("items.productId", "title price discountPrice productImage")
+            .populate("userId", "username")
             .sort({ createdAt: -1 });
 
         if (!orders.length) {

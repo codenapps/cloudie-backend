@@ -6,6 +6,9 @@ const OrderSchema = new mongoose.Schema({
         ref: 'user',
         required: true
     },
+    username:{
+        type: String,
+    },
     items: [
         {
             productId: {
@@ -38,6 +41,14 @@ const OrderSchema = new mongoose.Schema({
     },
     message: {
         type: String,
+    },
+    userLatitude: {
+        type: Number,
+        required: true
+    },
+    userLongitude: {
+        type: Number,
+        required: true
     },
     latitude: {
         type: Number,

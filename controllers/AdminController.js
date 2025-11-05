@@ -5,6 +5,10 @@ import PlanModel from "../models/PlanModel.js";
 import StoreOwnerModel from "../models/StoreOwnerModel.js";
 import SubscriptionModel from "../models/SubscriptionModel.js";
 import User from "../models/User.js";
+import OrderModel from "../models/OrderModel.js";
+import ProductModel from "../models/ProductModel.js";
+import RiderModel from "../models/RiderModel.js";
+import CategoryModel from "../models/CategoryModel.js";
 
 
 const HandleGetAllUsers = (req, res) => {
@@ -218,5 +222,39 @@ const HandleGetAllStores = async (req, res) => {
     }
 }
 
+const HandleGetAdminDashboard = async (req, res) => {
+    try {
 
-export { HandleGetAllUsers, HandleCreateAdmin, HandleUpdateAdmin, HandleGetAdmin, HandleVerfiyStore, HandleGetAllStores };
+        const { id } = req.params;
+        const findAdmin = await AdminSchema.findById(id);
+        if (!findAdmin) {
+            return res.status(404).json({ message: "Admin Not Found" });
+        }
+        if (findAdmin.role.includes("Admin")) {
+            const totalUsers = await User.countDocuments();
+            const findStores = await StoreOwnerModel.countDocuments();
+            const totalRiders = await RiderModel.countDocuments();
+            const listedCategories = await CategoryModel.countDocuments();
+            // const findPendingStores = await StoreOwnerModel.countDocuments({ verified: "Pending" });
+            const totalProducts = await ProductModel.countDocuments();
+            const totalOrders = await OrderModel.countDocuments();
+            const findTotalQueries = await ChatModel.countDocuments({ messageType: "text" });
+            const SubscriptionModelss = await SubscriptionModel.countDocuments();
+            const planPrice = await PlanModel.find()
+            const price = planPrice.map(item => item.price).reduce((accumulator, currentValue) => {
+                return accumulator + currentValue;
+            }, 0);
+
+            return res.status(200).json({ totalStores: findStores, totalUsers, totalOrders, clientQueries: findTotalQueries, totalEarnings: price, SubscriptionModelss: SubscriptionModelss, products: totalProducts, totalRiders: totalRiders, listedCategories: listedCategories })
+        } else {
+            res.status(500).json({ message: "Internal Server Error" })
+        }
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
+
+export { HandleGetAllUsers, HandleCreateAdmin, HandleUpdateAdmin, HandleGetAdmin, HandleVerfiyStore, HandleGetAllStores, HandleGetAdminDashboard };

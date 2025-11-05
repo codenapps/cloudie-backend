@@ -26,7 +26,9 @@ const HandleSignupUser = async (req, res) => {
             country,
             addressLine,
             postalCode,
-            phone
+            phone,
+            userLatitude,
+            userLongitude
         } = req.body;
 
         const existingUser = await StoreOwnerModel.findOne({
@@ -61,6 +63,8 @@ const HandleSignupUser = async (req, res) => {
             addressLine,
             postalCode,
             phone,
+            userLatitude,
+            userLongitude,
             OtpCode: getOtpCode,
             OtpExp: getOtpExpire,
         })
@@ -171,6 +175,8 @@ const HandleUpdateUser = async (req, res) => {
             addressLine,
             phone,
             postalCode,
+            userLatitude,
+            userLongitude
         } = req.body;
 
         const findUser = await User.findById(userID);
@@ -188,6 +194,9 @@ const HandleUpdateUser = async (req, res) => {
         findUser.phone = phone || findUser.phone
         findUser.addressLine = addressLine || findUser.addressLine
         findUser.postalCode = postalCode || findUser.postalCode
+        findUser.userLatitude = userLatitude || findUser.userLatitude
+        findUser.userLongitude = userLongitude || findUser.userLongitude
+        console.log(findUser, "findUser");
 
         await findUser.save();
 
