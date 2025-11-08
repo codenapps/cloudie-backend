@@ -14,7 +14,7 @@ router.patch("/update-store/:storeID", HandleUpdateStore)
 router.patch("/resubmit-verification/:storeID", HandleResubmitVerification)
 
 router.get("/get-store/:storeID", HandleGetStoreProfile)
-router.get("/get-store-dashboard-details/:StoreId", HandleGetStoreDashboard);
+router.get("/get-store-dashboard-details/:id", HandleGetStoreDashboard);
 // router.delete("/delete-store/:storeID", HandleDeleteAccount)
 
 // Test Deletion

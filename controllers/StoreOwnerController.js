@@ -10,6 +10,7 @@ import SubscriptionModel from "../models/SubscriptionModel.js";
 import CategoryModel from "../models/CategoryModel.js";
 import OrderModel from "../models/OrderModel.js";
 import PlanModel from "../models/PlanModel.js";
+import RiderModel from "../models/RiderModel.js";
 import mongoose from "mongoose";
 
 
@@ -515,28 +516,89 @@ const HandleDeleteAccount = async (req, res) => {
 const HandleGetStoreDashboard = async (req, res) => {
     try {
 
-        const { StoreId } = req.params;
-        const storeObjectId = new mongoose.Types.ObjectId(StoreId);
-        const findStores = await StoreOwnerModel.findById(storeObjectId);
-        if (!findStores) {
-            return res.status(404).json({ message: "Admin Not Found" });
-        }
+        //     const { StoreId } = req.params;
+        //     const storeObjectId = new mongoose.Types.ObjectId(StoreId);
+        //     const findStores = await StoreOwnerModel.findById(storeObjectId);
+        //     if (!findStores) {
+        //         return res.status(404).json({ message: "Admin Not Found" });
+        //     }
 
-        // const totalRiders = await RiderModel.countDocuments();
-        const listedCategories = await CategoryModel.countDocuments();
-        const totalProducts = await ProductModel.countDocuments({ id: findStores._id });
-        const totalOrders = await OrderModel.countDocuments({ StoreId: storeObjectId });
-        const planName = await SubscriptionModel.find({ id: findStores._id })
-        const plans = planName.planName
-        return res.status(200).json({ totalOrders, products: totalProducts, listedCategories: listedCategories, planName: plans })
+        //     const totalRiders = await RiderModel.countDocuments();
+        //     const listedCategories = await CategoryModel.countDocuments();
+        //     const totalProducts = await ProductModel.countDocuments();
+        //     const totalOrders = await OrderModel.countDocuments();
+        //     const planName = await SubscriptionModel.countDocuments()
+        //  const orderPrice = await OrderModel.find();
+        //     const price = orderPrice.map(item => item.totalAmount).reduce((accumulator, currentValue) => {
+        //         return accumulator + currentValue;
+        //     }, 0);
+        //     // const plans = planName.planName
+        //     return res.status(200).json({ totalOrders, totalProducts, listedCategories, planName, price, totalRiders })
 
-        // } else {
+        //     // } else {
+        //     //     res.status(500).json({ message: "Internal Server Error" })
+        //     // }
+
+        // } catch (error) {
+        //     console.log(error);
         //     res.status(500).json({ message: "Internal Server Error" })
         // }
 
+        const { id } = req.params;
+        // try {
+        const findStore = await StoreOwnerModel.findById(id) || await AdminModel.findById(id);
+
+        if (!findStore) {
+            return res.status(404).json({ message: 'Store not found' });
+        }
+
+        if (findStore.role.includes("StoreOwner")) {
+            const orders = await OrderModel.find({
+                isConfirmed: false, $or: [
+                    { 'items.storeID': id },
+                ],
+            })
+
+            let totalRevenue = 0;
+
+            for (const order of orders) {
+                await Promise.all(order.checkout.map(async (item) => {
+                    const findStore = await StoreOwnerModel.findById(item.storeID);
+                    const product = await ProductModel.findOne({ _id: item.prodID, storeID: id });
+
+                    if (product && typeof product.price === 'number' && !isNaN(product.price) && typeof item.qty === 'number' && !isNaN(item.qty)) {
+                        totalRevenue += product.price * item.qty;
+                    } else {
+                        console.error("Invalid values in checkout", product ? product.price : 'No product', item.qty);
+                    }
+                }));
+
+                await Promise.all(order.quotation.map(async (item) => {
+                    const findStore = await StoreOwner.findById(item.storeID);
+                    const product = await ProductModel.findOne({ _id: item.prodID, storeID: id });
+                    console.log(product, "product");
+
+                    if (product && typeof item.totalAmount === 'number' && !isNaN(item.totalAmount)) {
+                        totalRevenue += item.totalAmount;
+                    } else {
+                        console.error("Invalid price in quotation", item.totalAmount);
+                    }
+                }));
+            }
+
+            console.log(totalRevenue, "totl revence");
+            
+
+            const product = await ProductModel.countDocuments({ storeID: id })
+
+            return res.status(200).json({ totalRevenue, product, totalOrders: orders.length });
+        } else {
+            res.status(500).json({ message: 'Internal Server Error' });
+        }
+
     } catch (error) {
         console.log(error);
-        res.status(500).json({ message: "Internal Server Error" })
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 }
 
