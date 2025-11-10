@@ -260,51 +260,81 @@ const HandleGetChartData = async (req, res) => {
   try {
     const findStore = await StoreOwnerModel.findById(adminId) || await AdminModel.findById(adminId);
     if (!findStore) {
-      return res.status(404).json({ message: 'Store not found' });
+      return res.status(404).json({ message: 'Admin not found' });
     }
 
     const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const monthNames = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
 
     const currentYear = new Date().getFullYear();
-    const selectedYear = parseInt(year) || currentYear;
+    const selectedYear = year ? parseInt(year) : currentYear;
 
-    let startDate, endDate;
+    const fetchOrders = async (start, end) => {
+      return await OrderModel.find({
+        createdAt: { $gte: start, $lt: end }
+      });
+    };
+
+    let data = [];
 
     if (month) {
-      const monthIndex = isNaN(month)
-        ? monthNames.indexOf(month.toLowerCase())
-        : parseInt(month, 10) - 1;
-      startDate = new Date(selectedYear, monthIndex, 1);
-      endDate = new Date(selectedYear, monthIndex + 1, 1);
+      const monthIndex = isNaN(month) ? monthNames.indexOf(month.toLowerCase()) : parseInt(month, 10) - 1;
+      const startDate = new Date(selectedYear, monthIndex, 1);
+      const endDate = new Date(selectedYear, monthIndex + 1, 1);
+
+      const orders = await fetchOrders(startDate, endDate);
+
+      const storeOrders = orders
+        .map(order => {
+          if (!order.items || !Array.isArray(order.items)) return null;
+          const storeItems = order.items.filter(item => item.storeID && item.storeID.toString() === adminId);
+          if (storeItems.length > 0) {
+            const storeTotalAmount = storeItems.reduce((sum, item) => sum + (item.price * item.quantity || 0), 0);
+            return { ...order.toObject(), items: storeItems, totalAmount: storeTotalAmount };
+          }
+          return null;
+        })
+        .filter(order => order !== null);
+
+      const totalSales = storeOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+      const clients = [...new Map(storeOrders.map(o => [o.userId.toString(), o])).values()];
+
+      data.push({
+        name: monthOrder[monthIndex],
+        Sales: totalSales,
+        Orders: storeOrders.length,
+        Clients: clients.length
+      });
     } else {
-      startDate = new Date(selectedYear, 0, 1);
-      endDate = new Date(selectedYear + 1, 0, 1);
+      for (let m = 0; m < 12; m++) {
+        const startDate = new Date(selectedYear, m, 1);
+        const endDate = new Date(selectedYear, m + 1, 1);
+
+        const orders = await fetchOrders(startDate, endDate);
+
+        const storeOrders = orders
+          .map(order => {
+            if (!order.items || !Array.isArray(order.items)) return null;
+            const storeItems = order.items.filter(item => item.storeID && item.storeID.toString() === adminId);
+            if (storeItems.length > 0) {
+              const storeTotalAmount = storeItems.reduce((sum, item) => sum + (item.price * item.quantity || 0), 0);
+              return { ...order.toObject(), items: storeItems, totalAmount: storeTotalAmount };
+            }
+            return null;
+          })
+          .filter(order => order !== null);
+
+        const totalSales = storeOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+        const clients = [...new Map(storeOrders.map(o => [o.userId.toString(), o])).values()];
+
+        data.push({
+          name: monthOrder[m],
+          Sales: totalSales,
+          Orders: storeOrders.length,
+          Clients: clients.length
+        });
+      }
     }
-
-    const orders = await OrderModel.find({
-      createdAt: { $gte: startDate, $lt: endDate }
-    });
-
-    if (!orders.length) {
-      return res.status(200).json([]);
-    }
-
-    const prices = orders.reduce((acc, o) => acc + (parseFloat(o.totalAmount) || 0), 0);
-    const client = [...new Map(orders.map(o => [o.userId.toString(), o])).values()];
-
-    const monthName = month
-      ? monthOrder[isNaN(month)
-          ? monthNames.indexOf(month.toLowerCase())
-          : parseInt(month, 10) - 1]
-      : null;
-
-    const data = [{
-      ...(monthName && { name: monthName }),
-      Sales: prices,
-      Orders: orders.length,
-      Clients: client.length
-    }];
 
     res.status(200).json(data);
   } catch (error) {
@@ -312,6 +342,7 @@ const HandleGetChartData = async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 };
+
 
 
 export { HandleGetAllUsers, HandleCreateAdmin, HandleUpdateAdmin, HandleGetAdmin, HandleVerfiyStore, HandleGetAllStores, HandleGetAdminDashboard, HandleGetChartData };
