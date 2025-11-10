@@ -258,7 +258,7 @@ const HandleGetChartData = async (req, res) => {
   const { month, year } = req.query;
 
   try {
-    const findStore = await StoreOwnerModel.findById(id) || await AdminModel.findById(id);
+    const findStore = await StoreOwnerModel.findById(adminId) || await AdminModel.findById(adminId);
     if (!findStore) {
       return res.status(404).json({ message: 'Store not found' });
     }
