@@ -587,11 +587,12 @@ const HandleGetStoreDashboard = async (req, res) => {
             }
 
             console.log(totalRevenue, "totl revence");
-            
+
 
             const product = await ProductModel.countDocuments({ storeID: id })
+            const subs = await SubscriptionModel.countDocuments({ storeID: id });
 
-            return res.status(200).json({ totalRevenue, product, totalOrders: orders.length });
+            return res.status(200).json({ totalRevenue, product, totalOrders: orders.length, subscription: subs });
         } else {
             res.status(500).json({ message: 'Internal Server Error' });
         }

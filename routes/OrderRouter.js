@@ -8,7 +8,8 @@ import {
     HandleAssignRider,
     HandleRiderAccept,
     HandleRiderReject,
-    HandleGetRiderOrders
+    HandleGetRiderOrders,
+    HandleGetAllsUserOrdersStore
 } from "../controllers/OrderController.js";
 
 const router = express.Router();
@@ -17,6 +18,7 @@ const router = express.Router();
 router.post("/:userId/place", HandlePlaceOrder);
 router.get("/user/:userId", HandleGetUserOrders);
 router.get("/store/:storeID", HandleGetUserOrdersStore);
+router.get("/order-details/:adminId", HandleGetAllsUserOrdersStore);
 router.get("/:orderId", HandleGetSingleOrder);
 router.patch("/:orderId/status", HandleUpdateOrderStatus);
 

@@ -239,6 +239,47 @@ const HandleGetSingleUser = async (req, res) => {
     }
 }
 
+const HandleGetAllUser = async (req, res) => {
+  try {
+    let { page = 1, limit = 10 } = req.query;
+
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    if (isNaN(page) || page < 1) page = 1;
+    if (isNaN(limit) || limit < 1 || limit > 100) limit = 10;
+
+    const skip = (page - 1) * limit;
+
+    const [users, riders] = await Promise.all([
+      User.find().skip(skip).limit(limit),
+      RiderModel.find().skip(skip).limit(limit)
+    ]);
+
+    const allUsers = [...users, ...riders].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    const [userCount, riderCount] = await Promise.all([
+      User.countDocuments(),
+      RiderModel.countDocuments()
+    ]);
+    const total = userCount + riderCount;
+
+    res.status(200).json({
+      success: true,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      users: allUsers
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
 
 
-export { HandleGetAllUsers, HandleSignupUser, HandleVerifyUserOtp, HandleUpdateUser, HandleGetSingleUser };
+
+export { HandleGetAllUsers, HandleSignupUser, HandleVerifyUserOtp, HandleUpdateUser, HandleGetSingleUser, HandleGetAllUser };

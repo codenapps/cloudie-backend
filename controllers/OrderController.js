@@ -274,12 +274,17 @@ const HandleGetUserOrders = async (req, res) => {
 
 const HandleGetUserOrdersStore = async (req, res) => {
     const { storeID } = req.params;
+    const { page = 1, limit = 10 } = req.query;
 
     try {
+        const skip = (page - 1) * limit;
+
         const orders = await Order.find({ "items.storeID": storeID })
             .populate("items.productId", "title price discountPrice productImage")
             .populate("userId", "username")
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit));
 
         if (!orders.length) {
             return res.status(200).json({ message: "No orders found for this store." });
@@ -291,6 +296,44 @@ const HandleGetUserOrdersStore = async (req, res) => {
         res.status(500).json({ message: "Error retrieving store orders", error });
     }
 };
+
+const HandleGetAllsUserOrdersStore = async (req, res) => {
+    const { adminId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+
+    try {
+        const pageNumber = parseInt(page);
+        const limitNumber = parseInt(limit);
+
+        const skip = (pageNumber - 1) * limitNumber;
+
+        const orders = await Order.find()
+            .skip(skip)
+            .limit(limitNumber)
+            .sort({ createdAt: -1 });
+
+        const totalOrders = await Order.countDocuments();
+
+        if (!orders.length) {
+            return res.status(200).json({ message: "No orders found." });
+        }
+
+        console.log(totalOrders.length);
+        
+
+        res.status(200).json({
+            totalOrders,
+            currentPage: pageNumber,
+            totalPages: Math.ceil(totalOrders / limitNumber),
+            pageSize: orders.length,
+            orders,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error retrieving store orders", error });
+    }
+};
+
 
 const HandleGetSingleOrder = async (req, res) => {
     const { orderId } = req.params;
@@ -514,5 +557,5 @@ const HandleGetRiderOrders = async (req, res) => {
 
 
 export {
-    HandlePlaceOrder, HandleGetUserOrders, HandleGetUserOrdersStore, HandleGetSingleOrder, HandleUpdateOrderStatus, HandleAssignRider, HandleRiderAccept, HandleRiderReject, HandleGetRiderOrders,
+    HandlePlaceOrder, HandleGetUserOrders, HandleGetUserOrdersStore, HandleGetSingleOrder, HandleUpdateOrderStatus, HandleAssignRider, HandleRiderAccept, HandleRiderReject, HandleGetRiderOrders, HandleGetAllsUserOrdersStore,
 };

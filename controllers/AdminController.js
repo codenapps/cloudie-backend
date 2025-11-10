@@ -178,49 +178,45 @@ const HandleGetAllStores = async (req, res) => {
         const { id } = req.params;
         const { page = 1, limit = 5 } = req.query;
 
-        const findUser = await User.findById(id) || await StoreOwnerModel.findById(id) || await AdminSchema.findById(id);
+        // Check if user exists (in any model)
+        // const findUser = await AdminSchema.findById(id);
 
-        if (!findUser) {
-            return res.status(404).json({ message: "User Not Found" });
-        }
+        // if (!findUser) {
+        //     return res.status(404).json({ message: "User Not Found" });
+        // }
 
-        if (findUser.role.includes('Admin')) {
+        // If admin — get pending stores
+        // if (findUser.role === 'Admin' || (Array.isArray(findUser.role) && findUser.role.includes('Admin'))) {
 
-            // const findStores = await StoreOwnerModel.find().limit(limit * 1)
-            //     .skip((page - 1) * limit)
-            //     .exec();
-            // const totalPages = await StoreOwnerModel.countDocuments();
+            const findStores = await StoreOwnerModel.find()
+                .limit(Number(limit))
+                .skip((Number(page) - 1) * Number(limit))
+                .exec();
+
+            const totalStores = await StoreOwnerModel.countDocuments({ verified: "Pending" });
+
             // if (findStores.length === 0) {
             //     return res.status(404).json({ message: "No Stores Found" });
             // }
 
-
-            const findStores = await StoreOwnerModel.find({ verified: "Pending" }).limit(limit * 1)
-                .skip((page - 1) * limit)
-                .exec();
-            const totalPages = await StoreOwnerModel.countDocuments({ verified: "Pending" });
-            if (findStores.length === 0) {
-                return res.status(404).json({ message: "No Stores Found" });
-            }
-            res.status(200).json({
-                stores: findStores, totalPages: Math.ceil(totalPages / limit),
+            return res.status(200).json({
+                stores: findStores,
+                totalPages: Math.ceil(totalStores / limit),
                 currentPage: Number(page),
             });
 
+        // } else if (findUser.role === 'StoreOwner' || (Array.isArray(findUser.role) && findUser.role.includes('StoreOwner'))) {
+        //     return res.status(401).json({ message: "Unauthorized Request" });
+        // }
 
-        } else if (findUser.role.includes('StoreOwner')) {
-
-            return res.status(401).json({ stores: "Unauthorized Request" });
-
-        } else {
-            res.status(401).json({ stores: "Invalid Request" });
-        }
+        return res.status(401).json({ message: "Invalid Request" });
 
     } catch (error) {
-        console.log(error);
+        console.error(error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-}
+};
+
 
 const HandleGetAdminDashboard = async (req, res) => {
     try {
