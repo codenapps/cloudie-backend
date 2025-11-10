@@ -1,5 +1,5 @@
 import express from "express";
-import { HandleDeleteAccount, HandleGetStoreProfile, HandleResubmitVerification, HandleSignupStore, HandleUpdateStore, HandleVerifyStoreOtp, HandleGetStoreDashboard } from "../controllers/StoreOwnerController.js";
+import { HandleDeleteAccount, HandleGetStoreProfile, HandleResubmitVerification, HandleSignupStore, HandleUpdateStore, HandleVerifyStoreOtp, HandleGetStoreDashboard, HandleGetChartData } from "../controllers/StoreOwnerController.js";
 
 
 const router = express.Router();
@@ -16,6 +16,8 @@ router.patch("/resubmit-verification/:storeID", HandleResubmitVerification)
 router.get("/get-store/:storeID", HandleGetStoreProfile)
 
 router.get("/get-store-dashboard-details/:id", HandleGetStoreDashboard);
+
+router.get("/get-chart-details/:storeId", HandleGetChartData);
 // router.delete("/delete-store/:storeID", HandleDeleteAccount)
 
 // Test Deletion

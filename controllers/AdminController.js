@@ -9,6 +9,7 @@ import OrderModel from "../models/OrderModel.js";
 import ProductModel from "../models/ProductModel.js";
 import RiderModel from "../models/RiderModel.js";
 import CategoryModel from "../models/CategoryModel.js";
+import AdminModel from "../models/AdminModel.js";
 
 
 const HandleGetAllUsers = (req, res) => {
@@ -188,22 +189,22 @@ const HandleGetAllStores = async (req, res) => {
         // If admin — get pending stores
         // if (findUser.role === 'Admin' || (Array.isArray(findUser.role) && findUser.role.includes('Admin'))) {
 
-            const findStores = await StoreOwnerModel.find()
-                .limit(Number(limit))
-                .skip((Number(page) - 1) * Number(limit))
-                .exec();
+        const findStores = await StoreOwnerModel.find()
+            .limit(Number(limit))
+            .skip((Number(page) - 1) * Number(limit))
+            .exec();
 
-            const totalStores = await StoreOwnerModel.countDocuments({ verified: "Pending" });
+        const totalStores = await StoreOwnerModel.countDocuments({ verified: "Pending" });
 
-            // if (findStores.length === 0) {
-            //     return res.status(404).json({ message: "No Stores Found" });
-            // }
+        // if (findStores.length === 0) {
+        //     return res.status(404).json({ message: "No Stores Found" });
+        // }
 
-            return res.status(200).json({
-                stores: findStores,
-                totalPages: Math.ceil(totalStores / limit),
-                currentPage: Number(page),
-            });
+        return res.status(200).json({
+            stores: findStores,
+            totalPages: Math.ceil(totalStores / limit),
+            currentPage: Number(page),
+        });
 
         // } else if (findUser.role === 'StoreOwner' || (Array.isArray(findUser.role) && findUser.role.includes('StoreOwner'))) {
         //     return res.status(401).json({ message: "Unauthorized Request" });
@@ -252,5 +253,65 @@ const HandleGetAdminDashboard = async (req, res) => {
     }
 }
 
+const HandleGetChartData = async (req, res) => {
+  const { adminId } = req.params;
+  const { month, year } = req.query;
 
-export { HandleGetAllUsers, HandleCreateAdmin, HandleUpdateAdmin, HandleGetAdmin, HandleVerfiyStore, HandleGetAllStores, HandleGetAdminDashboard };
+  try {
+    const findStore = await StoreOwnerModel.findById(id) || await AdminModel.findById(id);
+    if (!findStore) {
+      return res.status(404).json({ message: 'Store not found' });
+    }
+
+    const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthNames = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+
+    const currentYear = new Date().getFullYear();
+    const selectedYear = parseInt(year) || currentYear;
+
+    let startDate, endDate;
+
+    if (month) {
+      const monthIndex = isNaN(month)
+        ? monthNames.indexOf(month.toLowerCase())
+        : parseInt(month, 10) - 1;
+      startDate = new Date(selectedYear, monthIndex, 1);
+      endDate = new Date(selectedYear, monthIndex + 1, 1);
+    } else {
+      startDate = new Date(selectedYear, 0, 1);
+      endDate = new Date(selectedYear + 1, 0, 1);
+    }
+
+    const orders = await OrderModel.find({
+      createdAt: { $gte: startDate, $lt: endDate }
+    });
+
+    if (!orders.length) {
+      return res.status(200).json([]);
+    }
+
+    const prices = orders.reduce((acc, o) => acc + (parseFloat(o.totalAmount) || 0), 0);
+    const client = [...new Map(orders.map(o => [o.userId.toString(), o])).values()];
+
+    const monthName = month
+      ? monthOrder[isNaN(month)
+          ? monthNames.indexOf(month.toLowerCase())
+          : parseInt(month, 10) - 1]
+      : null;
+
+    const data = [{
+      ...(monthName && { name: monthName }),
+      Sales: prices,
+      Orders: orders.length,
+      Clients: client.length
+    }];
+
+    res.status(200).json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+
+export { HandleGetAllUsers, HandleCreateAdmin, HandleUpdateAdmin, HandleGetAdmin, HandleVerfiyStore, HandleGetAllStores, HandleGetAdminDashboard, HandleGetChartData };

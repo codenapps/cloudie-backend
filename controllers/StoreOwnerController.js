@@ -603,6 +603,82 @@ const HandleGetStoreDashboard = async (req, res) => {
     }
 }
 
+const HandleGetChartData = async (req, res) => {
+    const { storeId } = req.params;
+    const { month, year } = req.query;
+
+    try {
+        const findStore = await StoreOwnerModel.findById(storeId);
+        if (!findStore) {
+            return res.status(404).json({ message: 'Store not found' });
+        }
+
+        const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+        const currentYear = new Date().getFullYear();
+        const selectedYear = year ? parseInt(year) : currentYear;
+
+        let startDate, endDate;
+
+        if (month) {
+            const monthIndex = isNaN(month) ? monthNames.indexOf(month.toLowerCase()) : parseInt(month, 10) - 1;
+            startDate = new Date(selectedYear, monthIndex, 1);
+            endDate = new Date(selectedYear, monthIndex + 1, 1);
+        } else {
+            // If no month provided, return for the full year
+            startDate = new Date(selectedYear, 0, 1);
+            endDate = new Date(selectedYear + 1, 0, 1);
+        }
+
+        // Fetch all orders in the period
+        const orders = await OrderModel.find({
+            createdAt: { $gte: startDate, $lt: endDate }
+        });
+
+        const storeOrders = orders
+            .map(order => {
+                if (!order.items || !Array.isArray(order.items)) return null; // skip invalid orders
+
+                const storeItems = order.items.filter(item => item.storeID && item.storeID.toString() === storeId);
+
+                if (storeItems.length > 0) {
+                    const storeTotalAmount = storeItems.reduce((sum, item) => sum + (item.price * item.quantity || 0), 0);
+                    return { ...order.toObject(), items: storeItems, totalAmount: storeTotalAmount };
+                }
+
+                return null;
+            })
+            .filter(order => order !== null);
+
+
+        if (!storeOrders.length) {
+            return res.status(200).json([]);
+        }
+
+        // Calculate metrics
+        const totalSales = storeOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+        const uniqueClients = [...new Map(storeOrders.map(o => [o.userId, o])).values()];
+
+        const monthName = month
+            ? monthOrder[isNaN(month) ? monthNames.indexOf(month.toLowerCase()) : parseInt(month, 10) - 1]
+            : null;
+
+        const data = [{
+            ...(monthName && { name: monthName }),
+            Sales: totalSales,
+            Orders: storeOrders.length,
+            Clients: uniqueClients.length
+        }];
+
+        res.status(200).json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
+
 export {
     HandleSignupStore,
     HandleVerifyStoreOtp,
@@ -610,5 +686,6 @@ export {
     HandleGetStoreProfile,
     HandleResubmitVerification,
     HandleDeleteAccount,
-    HandleGetStoreDashboard
+    HandleGetStoreDashboard,
+    HandleGetChartData
 }
