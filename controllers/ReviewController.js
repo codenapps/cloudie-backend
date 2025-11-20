@@ -1,8 +1,10 @@
 import ReviewModel from '../models/ReviewModel.js';
 import ProductModel from '../models/ProductModel.js';
 import UserModel from '../models/User.js';
+import ReviewRiderSchema from '../models/RiderReviewModel.js';
+import mongoose from 'mongoose';
 
-export const createReview = async (req, res) => {
+const createReview = async (req, res) => {
     try {
         const { productId } = req.params;
         const { userId, rating, comment } = req.body;
@@ -38,7 +40,7 @@ export const createReview = async (req, res) => {
     }
 };
 
-export const getProductReviews = async (req, res) => {
+const getProductReviews = async (req, res) => {
     try {
         const { productId } = req.params;
 
@@ -57,7 +59,69 @@ export const getProductReviews = async (req, res) => {
     }
 };
 
-export default {
+const createRiderReview = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { rating, comment } = req.body;
+
+        console.log("REQ PARAM userId:", userId);
+
+        // 1️⃣ Check if userId is valid
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ message: "Invalid userId format" });
+        }
+
+        // Validate user exists
+        const user = await UserModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Create new review
+        const newReview = new ReviewRiderSchema({
+            user: userId,
+            rating,
+            comment,
+        });
+
+        await newReview.save();
+
+        res.status(201).json({
+            message: "Review created successfully",
+            review: newReview,
+        });
+
+    } catch (error) {
+        console.error("Error creating review:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+const getRiderReviews = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const reviews = await ReviewRiderSchema.find({ user: userId })
+            .populate('user', 'username profile_image')
+            .sort({ createdAt: -1 });
+
+        if (!reviews || reviews.length === 0) {
+            return res.status(404).json({ message: 'No reviews found for this Rider' });
+        }
+
+        console.log(reviews, "reviews");
+
+
+        res.status(200).json(reviews);
+    } catch (error) {
+        console.error('Error fetching reviews:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+export {
     getProductReviews,
-    createReview
+    createReview,
+    createRiderReview,
+    getRiderReviews
 }
