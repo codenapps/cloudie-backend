@@ -123,7 +123,6 @@ const HandlePlaceOrder = async (req, res) => {
     session.startTransaction();
 
     try {
-        // 1️⃣ Fetch the user's cart
         const cart = await Cart.findOne({ userId })
             .populate("items.productId", "title price discountPrice stock storeID")
             .session(session);
@@ -208,7 +207,7 @@ const HandlePlaceOrder = async (req, res) => {
         const rider = await Riders.findOne({
             status: "Active",
             verified: "Accepted",
-        });
+        })
 
         if (rider) {
             newOrder.assignedRider = rider._id;
@@ -259,6 +258,7 @@ const HandleGetUserOrders = async (req, res) => {
     try {
         const orders = await Order.find({ userId })
             .populate("items.productId", "title price discountPrice productImage")
+            .populate("assignedRider", "username email phone vehicleType profile_image status verified")
             .sort({ createdAt: -1 });
 
         if (!orders.length) {
@@ -271,6 +271,7 @@ const HandleGetUserOrders = async (req, res) => {
         res.status(500).json({ message: "Error retrieving orders", error });
     }
 };
+
 
 const HandleGetUserOrdersStore = async (req, res) => {
     const { storeID } = req.params;
@@ -310,7 +311,8 @@ const HandleGetAllsUserOrdersStore = async (req, res) => {
         const orders = await Order.find()
             .skip(skip)
             .limit(limitNumber)
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .populate("userId", "username email");;
 
         const totalOrders = await Order.countDocuments();
 
@@ -319,7 +321,7 @@ const HandleGetAllsUserOrdersStore = async (req, res) => {
         }
 
         console.log(totalOrders.length);
-        
+
 
         res.status(200).json({
             totalOrders,

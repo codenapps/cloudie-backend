@@ -6,7 +6,7 @@ const OrderSchema = new mongoose.Schema({
         ref: 'user',
         required: true
     },
-    username:{
+    username: {
         type: String,
     },
     items: [
@@ -52,15 +52,15 @@ const OrderSchema = new mongoose.Schema({
     },
     latitude: {
         type: Number,
-        required: true
+        // required: true
     },
     longitude: {
         type: Number,
-        required: true
+        // required: true
     },
     assignedRider: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Rider',
+        ref: 'Riders',
         default: null
     },
     riderUsername: {
@@ -70,9 +70,17 @@ const OrderSchema = new mongoose.Schema({
     rejectedRiders: [
         {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Rider'
+            ref: 'Riders'
         }
-    ]
+    ],
+    paymentId: {
+        type: String,
+    },
+    paymentStatus: {
+        type: String,
+        enum: ["Paid", "Unpaid"],
+        default: "Paid",
+    },
     // orderDate: {
     //     type: Date,
     //     default: Date.now

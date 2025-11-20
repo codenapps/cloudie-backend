@@ -4,6 +4,7 @@ import StoreOwnerModel from "../models/StoreOwnerModel.js";
 import User from "../models/User.js";
 import autoMailer from "../utils/AutoMailer.js";
 import { generatePass } from "../utils/PasswordGenerator.js";
+import Order from "../models/OrderModel.js";
 
 import { v2 as cloudinary } from "cloudinary";
 
@@ -348,10 +349,131 @@ const HandleUpdateRiders = async (req, res) => {
     }
 }
 
+const getRidersWithAssignedOrders = async (req, res) => {
+    try {
+        const riders = await Order.aggregate([
+            { $match: { assignedRider: { $ne: null } } },
+            {
+                $lookup: {
+                    from: "riders",
+                    localField: "assignedRider",
+                    foreignField: "_id",
+                    as: "rider"
+                }
+            },
+            { $unwind: "$rider" },
+            {
+                $group: {
+                    _id: "$assignedRider",
+                    username: { $first: "$rider.username" },
+                    email: { $first: "$rider.email" },
+                    phone: { $first: "$rider.phone" },
+                    totalAssignedOrders: { $sum: 1 }
+                }
+            }
+        ]);
+
+        return res.status(200).json({
+            message: "Riders with assigned orders fetched successfully",
+            riders
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error fetching riders",
+            error: error.message
+        });
+    }
+};
+
+const getSingleRiderDetails = async (req, res) => {
+    try {
+        const { riderId } = req.params;
+
+        const rider = await RiderModel.findById(riderId);
+        if (!rider) {
+            return res.status(404).json({ message: "Rider not found" });
+        }
+
+        const orders = await Order.find({ assignedRider: riderId })
+            .populate("items.productId", "title price discountPrice")
+            .sort({ createdAt: -1 });
+
+        const deliveredCount = await Order.find({
+            assignedRider: riderId,
+            status: { $in: ["Delivered"] }
+        });
+
+        return res.status(200).json({
+            rider,
+            assignedOrders: orders,
+            deliveredOrders: deliveredCount,
+
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error fetching rider details",
+            error: error.message
+        });
+    }
+};
+
+const getSingleRiderDeliveredOrders = async (req, res) => {
+    try {
+        const { riderId } = req.params;
+
+        const rider = await RiderModel.findById(riderId);
+        if (!rider) {
+            return res.status(404).json({ message: "Rider not found" });
+        }
+
+        const assignedOrders = await Order.find({
+            assignedRider: riderId
+        });
+
+        const assignedCount = assignedOrders.length;
+
+        const deliveredCount = await Order.countDocuments({
+            assignedRider: riderId,
+            status: { $in: ["Delivered"] }
+        });
+
+        let totalEarnings = 0;
+
+        assignedOrders.forEach(order => {
+            const amount = order.totalAmount || 0;
+            totalEarnings += amount * 0.03;
+        });
+
+        return res.status(200).json({
+            rider: {
+                riderId: rider._id,
+                username: rider.username,
+                email: rider.email,
+                phone: rider.phone
+            },
+            assignedOrders: assignedCount,
+            deliveredOrders: deliveredCount,
+            totalEarnings: Number(totalEarnings.toFixed(2))
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error fetching rider chart data",
+            error: error.message
+        });
+    }
+};
+
+
 export {
     HandleInviteRiders,
     HandleSubmitVerification,
     RiderOtpVerify,
     HandleGetRiders,
-    HandleUpdateRiders
+    HandleUpdateRiders,
+    getRidersWithAssignedOrders,
+    getSingleRiderDetails,
+    getSingleRiderDeliveredOrders
 }
