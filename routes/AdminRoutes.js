@@ -1,5 +1,5 @@
 import express from "express";
-import { HandleCreateAdmin, HandleGetAdmin, HandleGetAllStores, HandleGetAllUsers, HandleUpdateAdmin, HandleVerfiyStore, HandleGetAdminDashboard, HandleGetChartData } from "../controllers/AdminController.js";
+import { HandleCreateAdmin, HandleGetAdmin, HandleGetAllStores, HandleGetAllUsers, HandleUpdateAdmin, HandleVerfiyStore, HandleGetAdminDashboard, HandleGetChartData, HandleGetAllSubscriptions } from "../controllers/AdminController.js";
 
 const router = express.Router();
 
@@ -19,5 +19,7 @@ router.get("/get-all-stores/:id", HandleGetAllStores)
 router.get("/get-admin-dashboard-details/:id", HandleGetAdminDashboard);
 
 router.get("/get-chart-details/:adminId", HandleGetChartData);
+
+router.get('/admin/get-all-subscriptions', HandleGetAllSubscriptions);
 
 export default router;

@@ -354,7 +354,7 @@ const HandleUpdateStore = async (req, res) => {
         }
 
         findStore.storeName = storeName || findStore.storeName
-        findStore.email = email.toLowerCase() || findStore.email
+        findStore.email = email || findStore.email
         findStore.password = password || findStore.password
         findStore.description = description || findStore.description
         findStore.city = city || findStore.city

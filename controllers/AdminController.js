@@ -179,44 +179,43 @@ const HandleGetAllStores = async (req, res) => {
         const { id } = req.params;
         const { page = 1, limit = 5 } = req.query;
 
-        // Check if user exists (in any model)
-        // const findUser = await AdminSchema.findById(id);
+        const findUser = await AdminSchema.findById(id);
 
-        // if (!findUser) {
-        //     return res.status(404).json({ message: "User Not Found" });
-        // }
+        if (!findUser) {
+            return res.status(404).json({ message: "User Not Found" });
+        }
 
-        // If admin — get pending stores
-        // if (findUser.role === 'Admin' || (Array.isArray(findUser.role) && findUser.role.includes('Admin'))) {
+        if (
+            findUser.role === "Admin" ||
+            (Array.isArray(findUser.role) && findUser.role.includes("Admin"))
+        ) {
+            const skip = (Number(page) - 1) * Number(limit);
 
-        const findStores = await StoreOwnerModel.find()
-            .limit(Number(limit))
-            .skip((Number(page) - 1) * Number(limit))
-            .exec();
+            const stores = await StoreOwnerModel.find()
+                .skip(skip)
+                .limit(Number(limit))
+                .exec();
 
-        const totalStores = await StoreOwnerModel.countDocuments({ verified: "Pending" });
+            if (stores.length === 0) {
+                return res.status(404).json({ message: "No Stores Found" });
+            }
+            let totalPages = Math.ceil(await StoreOwnerModel.countDocuments() / Number(limit));
+            return res.status(200).json({
+                stores,
+                totalPages,
+                currentPage: Number(page),
+                limit: Number(limit),
+            });
+        }
 
-        // if (findStores.length === 0) {
-        //     return res.status(404).json({ message: "No Stores Found" });
-        // }
-
-        return res.status(200).json({
-            stores: findStores,
-            totalPages: Math.ceil(totalStores / limit),
-            currentPage: Number(page),
-        });
-
-        // } else if (findUser.role === 'StoreOwner' || (Array.isArray(findUser.role) && findUser.role.includes('StoreOwner'))) {
-        //     return res.status(401).json({ message: "Unauthorized Request" });
-        // }
-
-        return res.status(401).json({ message: "Invalid Request" });
+        return res.status(401).json({ message: "Unauthorized Request" });
 
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
 
 
 const HandleGetAdminDashboard = async (req, res) => {
@@ -254,95 +253,159 @@ const HandleGetAdminDashboard = async (req, res) => {
 }
 
 const HandleGetChartData = async (req, res) => {
-  const { adminId } = req.params;
-  const { month, year } = req.query;
+    const { adminId } = req.params;
+    const { month, year } = req.query;
 
-  try {
-    const findStore = await StoreOwnerModel.findById(adminId) || await AdminModel.findById(adminId);
-    if (!findStore) {
-      return res.status(404).json({ message: 'Admin not found' });
-    }
+    try {
+        const findStore = await StoreOwnerModel.findById(adminId) || await AdminModel.findById(adminId);
+        if (!findStore) {
+            return res.status(404).json({ message: 'Admin not found' });
+        }
 
-    const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const monthNames = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+        const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
-    const currentYear = new Date().getFullYear();
-    const selectedYear = year ? parseInt(year) : currentYear;
+        const currentYear = new Date().getFullYear();
+        const selectedYear = year ? parseInt(year) : currentYear;
 
-    const fetchOrders = async (start, end) => {
-      return await OrderModel.find({
-        createdAt: { $gte: start, $lt: end }
-      });
-    };
+        const fetchOrders = async (start, end) => {
+            return await OrderModel.find({
+                createdAt: { $gte: start, $lt: end }
+            });
+        };
 
-    let data = [];
+        let data = [];
 
-    if (month) {
-      const monthIndex = isNaN(month) ? monthNames.indexOf(month.toLowerCase()) : parseInt(month, 10) - 1;
-      const startDate = new Date(selectedYear, monthIndex, 1);
-      const endDate = new Date(selectedYear, monthIndex + 1, 1);
+        if (month) {
+            const monthIndex = isNaN(month) ? monthNames.indexOf(month.toLowerCase()) : parseInt(month, 10) - 1;
+            const startDate = new Date(selectedYear, monthIndex, 1);
+            const endDate = new Date(selectedYear, monthIndex + 1, 1);
 
-      const orders = await fetchOrders(startDate, endDate);
+            const orders = await fetchOrders(startDate, endDate);
 
-      const storeOrders = orders
-        .map(order => {
-          if (!order.items || !Array.isArray(order.items)) return null;
-          const storeItems = order.items.filter(item => item.storeID && item.storeID.toString() === adminId);
-          if (storeItems.length > 0) {
-            const storeTotalAmount = storeItems.reduce((sum, item) => sum + (item.price * item.quantity || 0), 0);
-            return { ...order.toObject(), items: storeItems, totalAmount: storeTotalAmount };
-          }
-          return null;
-        })
-        .filter(order => order !== null);
+            const storeOrders = orders
+                .map(order => {
+                    if (!order.items || !Array.isArray(order.items)) return null;
+                    const storeItems = order.items.filter(item => item.storeID && item.storeID.toString() === adminId);
+                    if (storeItems.length > 0) {
+                        const storeTotalAmount = storeItems.reduce((sum, item) => sum + (item.price * item.quantity || 0), 0);
+                        return { ...order.toObject(), items: storeItems, totalAmount: storeTotalAmount };
+                    }
+                    return null;
+                })
+                .filter(order => order !== null);
 
-      const totalSales = storeOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
-      const clients = [...new Map(storeOrders.map(o => [o.userId.toString(), o])).values()];
+            const totalSales = storeOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+            const clients = [...new Map(storeOrders.map(o => [o.userId.toString(), o])).values()];
 
-      data.push({
-        name: monthOrder[monthIndex],
-        Sales: totalSales,
-        Orders: storeOrders.length,
-        Clients: clients.length
-      });
-    } else {
-      for (let m = 0; m < 12; m++) {
-        const startDate = new Date(selectedYear, m, 1);
-        const endDate = new Date(selectedYear, m + 1, 1);
+            data.push({
+                name: monthOrder[monthIndex],
+                Sales: totalSales,
+                Orders: storeOrders.length,
+                Clients: clients.length
+            });
+        } else {
+            for (let m = 0; m < 12; m++) {
+                const startDate = new Date(selectedYear, m, 1);
+                const endDate = new Date(selectedYear, m + 1, 1);
 
-        const orders = await fetchOrders(startDate, endDate);
+                const orders = await fetchOrders(startDate, endDate);
 
-        const storeOrders = orders
-          .map(order => {
-            if (!order.items || !Array.isArray(order.items)) return null;
-            const storeItems = order.items.filter(item => item.storeID && item.storeID.toString() === adminId);
-            if (storeItems.length > 0) {
-              const storeTotalAmount = storeItems.reduce((sum, item) => sum + (item.price * item.quantity || 0), 0);
-              return { ...order.toObject(), items: storeItems, totalAmount: storeTotalAmount };
+                const storeOrders = orders
+                    .map(order => {
+                        if (!order.items || !Array.isArray(order.items)) return null;
+                        const storeItems = order.items.filter(item => item.storeID && item.storeID.toString() === adminId);
+                        if (storeItems.length > 0) {
+                            const storeTotalAmount = storeItems.reduce((sum, item) => sum + (item.price * item.quantity || 0), 0);
+                            return { ...order.toObject(), items: storeItems, totalAmount: storeTotalAmount };
+                        }
+                        return null;
+                    })
+                    .filter(order => order !== null);
+
+                const totalSales = storeOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+                const clients = [...new Map(storeOrders.map(o => [o.userId.toString(), o])).values()];
+
+                data.push({
+                    name: monthOrder[m],
+                    Sales: totalSales,
+                    Orders: storeOrders.length,
+                    Clients: clients.length
+                });
             }
-            return null;
-          })
-          .filter(order => order !== null);
+        }
 
-        const totalSales = storeOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
-        const clients = [...new Map(storeOrders.map(o => [o.userId.toString(), o])).values()];
-
-        data.push({
-          name: monthOrder[m],
-          Sales: totalSales,
-          Orders: storeOrders.length,
-          Clients: clients.length
-        });
-      }
+        res.status(200).json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
     }
+};
 
-    res.status(200).json(data);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
+const HandleGetAllSubscriptions = async (req, res) => {
+    try {
+        const { page = 1, limit = 10 } = req.query;
+        const skip = (Number(page) - 1) * Number(limit);
+
+        let subscriptions = await SubscriptionModel.find()
+            .skip(skip)
+            .limit(Number(limit))
+            .populate("storeID", "storeName email phone")
+            .populate("planID", "title description price discountedPrice planName duration")
+            .exec();
+
+        if (!subscriptions || subscriptions.length === 0) {
+            return res.status(404).json({ message: "No subscriptions found" });
+        }
+
+        subscriptions = subscriptions.map((sub) => {
+            const start = new Date(sub.createdAt);
+            const end = new Date(start);
+
+            const duration = sub.duration[0];
+
+            switch (duration) {
+                case "Trial":
+                    end.setDate(end.getDate() + 7);
+                    break;
+                case "Monthly":
+                    end.setMonth(end.getMonth() + 1);
+                    break;
+                case "Quarterly":
+                    end.setMonth(end.getMonth() + 3);
+                    break;
+                case "Yearly":
+                    end.setFullYear(end.getFullYear() + 1);
+                    break;
+            }
+
+            const now = new Date();
+            const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+
+            return {
+                ...sub.toObject(),
+                startDate: start,
+                endDate: end,
+                remainingDays: diff >= 0 ? diff : 0
+            };
+        });
+
+        const totalSubscriptions = await SubscriptionModel.countDocuments();
+
+        res.status(200).json({
+            message: "Subscriptions retrieved successfully",
+            subscriptions,
+            currentPage: Number(page),
+            totalPages: Math.ceil(totalSubscriptions / Number(limit)),
+            totalSubscriptions
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
 };
 
 
 
-export { HandleGetAllUsers, HandleCreateAdmin, HandleUpdateAdmin, HandleGetAdmin, HandleVerfiyStore, HandleGetAllStores, HandleGetAdminDashboard, HandleGetChartData };
+export { HandleGetAllUsers, HandleCreateAdmin, HandleUpdateAdmin, HandleGetAdmin, HandleVerfiyStore, HandleGetAllStores, HandleGetAdminDashboard, HandleGetChartData, HandleGetAllSubscriptions };
