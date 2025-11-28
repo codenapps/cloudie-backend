@@ -104,6 +104,14 @@ const StoreOwner = new Schema({
         enum: ['snack-seller', 'non-snack-seller'],
         required: true
     },
+    storeLatitude: {
+        type: Number,
+        required: true
+    },
+    storeLongitude: {
+        type: Number,
+        required: true
+    }
 }, { timestamps: true });
 
 export default mongoose.model("StoreOwner", StoreOwner);

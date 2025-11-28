@@ -65,6 +65,12 @@ const RiderModel = new Schema({
         type: [String],
         enum: ['Active', 'Inactive'],
         default: ['Inactive']
+    },
+    riderLatitude: {
+        type: Number,
+    },
+    riderLongitude: {
+        type: Number
     }
 }, { timestamps: true });
 

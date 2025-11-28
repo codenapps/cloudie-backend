@@ -177,7 +177,11 @@ const HandleVerfiyStore = async (req, res) => {
 const HandleGetAllStores = async (req, res) => {
     try {
         const { id } = req.params;
-        const { page = 1, limit = 5 } = req.query;
+        let { page = 1, limit = 5 } = req.query;
+
+        page = Number(page);
+        limit = Number(limit);
+        const skip = (page - 1) * limit;
 
         const findUser = await AdminSchema.findById(id);
 
@@ -185,36 +189,57 @@ const HandleGetAllStores = async (req, res) => {
             return res.status(404).json({ message: "User Not Found" });
         }
 
-        if (
+        const isAdmin =
             findUser.role === "Admin" ||
-            (Array.isArray(findUser.role) && findUser.role.includes("Admin"))
-        ) {
-            const skip = (Number(page) - 1) * Number(limit);
+            (Array.isArray(findUser.role) && findUser.role.includes("Admin"));
 
-            const stores = await StoreOwnerModel.find()
-                .skip(skip)
-                .limit(Number(limit))
-                .exec();
-
-            if (stores.length === 0) {
-                return res.status(404).json({ message: "No Stores Found" });
-            }
-            let totalPages = Math.ceil(await StoreOwnerModel.countDocuments() / Number(limit));
-            return res.status(200).json({
-                stores,
-                totalPages,
-                currentPage: Number(page),
-                limit: Number(limit),
-            });
+        if (!isAdmin) {
+            return res.status(401).json({ message: "Unauthorized Request" });
         }
 
-        return res.status(401).json({ message: "Unauthorized Request" });
+        const stores = await StoreOwnerModel.find()
+            .skip(skip)
+            .limit(limit);
+
+        const totalStores = await StoreOwnerModel.countDocuments();
+        const totalStorePages = Math.ceil(totalStores / limit);
+
+        const pendingStores = await StoreOwnerModel.find({ verified: "Pending" })
+            .skip(skip)
+            .limit(limit);
+
+        const pendingCount = await StoreOwnerModel.countDocuments({
+            verified: "Pending",
+        });
+        const pendingPages = Math.ceil(pendingCount / limit);
+
+        if (stores.length === 0) {
+            return res.status(404).json({ message: "No Stores Found" });
+        }
+
+        return res.status(200).json({
+            allStores: {
+                data: stores,
+                totalPages: totalStorePages,
+                totalCount: totalStores,
+                currentPage: page,
+                limit,
+            },
+            pendingStores: {
+                data: pendingStores,
+                totalPages: pendingPages,
+                totalCount: pendingCount,
+                currentPage: page,
+                limit,
+            }
+        });
 
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
 
 
 

@@ -259,6 +259,7 @@ const HandleGetUserOrders = async (req, res) => {
         const orders = await Order.find({ userId })
             .populate("items.productId", "title price discountPrice productImage")
             .populate("assignedRider", "username email phone vehicleType profile_image status verified")
+
             .sort({ createdAt: -1 });
 
         if (!orders.length) {
@@ -340,10 +341,11 @@ const HandleGetAllsUserOrdersStore = async (req, res) => {
 const HandleGetSingleOrder = async (req, res) => {
     const { orderId } = req.params;
     try {
-        const order = await Order.findById(orderId).populate(
-            "items.productId",
-            "title price discountPrice productImage riderUsername"
-        );
+        const order = await Order.findById(orderId)
+            .populate("items.productId", "title price discountPrice productImage riderUsername")
+            .populate("items.storeID", "storeLatitude storeLongitude storeName logo")
+            .populate("items.riderID", "riderLatitude riderLongitude username phone profile_image vehicleType")
+
         if (!order) return res.status(404).json({ message: "Order not found" });
         console.log(order);
 

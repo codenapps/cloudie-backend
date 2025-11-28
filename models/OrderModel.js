@@ -26,7 +26,11 @@ const OrderSchema = new mongoose.Schema({
             },
             storeID: {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: 'products'
+                ref: 'StoreOwner'
+            },
+            riderID: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Riders'
             },
         }
     ],

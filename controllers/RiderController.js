@@ -97,7 +97,9 @@ const HandleSubmitVerification = async (req, res) => {
             state,
             country,
             addressLine,
-            postalCode
+            postalCode,
+            riderLatitude,
+            riderLongitude
         } = req.body;
 
 
@@ -114,9 +116,6 @@ const HandleSubmitVerification = async (req, res) => {
             resource_type: 'image',
             folder: "riders-w9",
         }) : '';
-
-
-
 
         const profileImgResult = profile_image ? await cloudinary.uploader.upload(profile_image.tempFilePath, {
             resource_type: 'image',
@@ -143,6 +142,8 @@ const HandleSubmitVerification = async (req, res) => {
         findRider.addressLine = addressLine || findRider.addressLine
         findRider.profile_image = profileImgResult.secure_url || findRider.profile_image
         findRider.postalCode = postalCode || findRider.postalCode
+        findRider.riderLatitude = riderLatitude || findRider.riderLatitude
+        findRider.riderLongitude = riderLongitude || findRider.riderLongitude
         await findRider.save();
 
         autoMailer(
@@ -172,7 +173,9 @@ const HandleSubmitVerification = async (req, res) => {
             postalCode: findRider.postalCode,
             status: findRider.status,
             verified: findRider.verified,
-            isOtpVerified: findRider.isOtpVerified
+            isOtpVerified: findRider.isOtpVerified,
+            riderLatitude: findRider.riderLatitude,
+            riderLongitude: findRider.riderLongitude
         }
 
 
@@ -223,7 +226,9 @@ const RiderOtpVerify = async (req, res) => {
                 postalCode: findUser.postalCode,
                 status: findUser.status,
                 verified: findUser.verified,
-                isOtpVerified: findUser.isOtpVerified
+                isOtpVerified: findUser.isOtpVerified,
+                riderLatitude: findUser.riderLatitude,
+                riderLongitude: findUser.riderLongitude
             }
             return res.status(200).json({ message: "OTP Verified Successfully", token });
 
@@ -282,6 +287,8 @@ const HandleUpdateRiders = async (req, res) => {
             country,
             addressLine,
             postalCode,
+            riderLongitude,
+            riderLatitude
         } = req.body;
 
         const { riderID } = req.params;
@@ -317,6 +324,8 @@ const HandleUpdateRiders = async (req, res) => {
         findRider.country = country || findRider.country
         findRider.addressLine = addressLine || findRider.addressLine
         findRider.postalCode = postalCode || findRider.postalCode
+        findRider.riderLongitude = riderLongitude || findRider.riderLongitude
+        findRider.riderLatitude = riderLatitude || findRider.riderLatitude
 
         await findRider.save();
 
@@ -338,7 +347,9 @@ const HandleUpdateRiders = async (req, res) => {
             vehicleType: findRider.vehicleType,
             status: findRider.status,
             verified: findRider.verified,
-            isOtpVerified: findRider.isOtpVerified
+            isOtpVerified: findRider.isOtpVerified,
+            riderLatitude: findRider.riderLatitude,
+            riderLongitude: findRider.riderLongitude
         }
 
         res.status(200).json({ message: "Rider Updated Successfully", token });

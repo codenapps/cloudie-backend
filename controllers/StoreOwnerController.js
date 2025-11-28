@@ -33,7 +33,9 @@ const HandleSignupStore = async (req, res) => {
             ssn_last_4,
             cardID,
             tokenID,
-            categories
+            categories,
+            storeLatitude,
+            storeLongitude
         } = req.body;
 
         // console.log(JSON.stringify(dob));
@@ -119,15 +121,17 @@ const HandleSignupStore = async (req, res) => {
             addressLine,
             postalCode,
             phone,
-            w9form: w9formResult.secure_url,
-            logo: uploadResult.secure_url,
+            w9form: w9formResult.secure_url || "",
+            logo: uploadResult.secure_url || "",
             OtpCode: getOtpCode,
             OtpExp: getOtpExpire,
             dob,
             identity_back: back.id,
             identity_front: front.id,
             ssn_last_4,
-            categories
+            categories,
+            storeLatitude,
+            storeLongitude
         })
 
         const fomrattedDob = dob.split("-");
@@ -308,7 +312,9 @@ const HandleUpdateStore = async (req, res) => {
             country,
             addressLine,
             postalCode,
-            status
+            status,
+            storeLatitude,
+            storeLongitude
         } = req.body;
 
         const findStore = await StoreOwnerModel.findById(storeID);
@@ -365,6 +371,8 @@ const HandleUpdateStore = async (req, res) => {
         findStore.status = status || findStore.status
         findStore.logo = uploadResult.secure_url || findStore.logo
         findStore.w9form = w9formResult.secure_url || findStore.w9form
+        findStore.storeLatitude = storeLatitude || findStore.storeLatitude
+        findStore.storeLongitude = storeLongitude || findStore.storeLongitude
 
         await findStore.save();
 
@@ -383,7 +391,9 @@ const HandleUpdateStore = async (req, res) => {
             postalCode: findStore.postalCode,
             status: findStore.status,
             verified: findStore.verified,
-            isOtpVerified: findStore.isOtpVerified
+            isOtpVerified: findStore.isOtpVerified,
+            storeLatitude: storeLatitude,
+            storeLongitude: storeLongitude
         }
 
         res.status(200).json({ message: "Store Updated Successfully", token });
@@ -614,7 +624,7 @@ const HandleGetChartData = async (req, res) => {
         }
 
         const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const monthNames = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+        const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
         const currentYear = new Date().getFullYear();
         const selectedYear = year ? parseInt(year) : currentYear;
