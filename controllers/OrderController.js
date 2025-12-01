@@ -135,18 +135,19 @@ const HandlePlaceOrder = async (req, res) => {
         const orderItems = cart.items.map((item) => {
             const product = item.productId;
             const unitPrice = product.discountPrice || product.price;
-            const subtotal = unitPrice * item.stock;
 
             return {
                 productId: product._id,
                 quantity: item.stock,
                 price: unitPrice,
-                subtotal,
                 storeID: product.storeID,
             };
         });
 
-        const totalAmount = orderItems.reduce((acc, item) => acc + item.subtotal, 0);
+        const totalAmount = orderItems.reduce(
+            (acc, item) => acc + item.price * item.quantity,
+            0
+        );
 
         const card = await Card.findOne({ userId, isDefault: true });
         if (!card) {
@@ -167,23 +168,15 @@ const HandlePlaceOrder = async (req, res) => {
 
         if (paymentIntent.status !== "succeeded") {
             await session.abortTransaction();
-            return res.status(400).json({
-                message: "Payment failed",
-                paymentIntent,
-            });
+            return res.status(400).json({ message: "Payment failed" });
         }
 
-        const newOrder = new Order({
+        let newOrder = new Order({
             userId,
             latitude,
             longitude,
             message,
-            items: orderItems.map(({ productId, quantity, price, storeID }) => ({
-                productId,
-                quantity,
-                price,
-                storeID,
-            })),
+            items: orderItems,
             totalAmount,
             paymentId: paymentIntent.id,
             paymentStatus: "Paid",
@@ -191,6 +184,22 @@ const HandlePlaceOrder = async (req, res) => {
             userLatitude: latitude,
             userLongitude: longitude,
         });
+
+        const rider = await Riders.findOne({
+            status: "Active",
+            verified: "Accepted",
+        });
+
+        if (rider) {
+            newOrder.assignedRider = rider._id;
+            newOrder.riderUsername = rider.username;
+            newOrder.status = "Assigned";
+
+            newOrder.items = newOrder.items.map((item) => ({
+                ...item.toObject(),
+                riderID: rider._id,
+            }));
+        }
 
         await newOrder.save({ session });
 
@@ -202,20 +211,11 @@ const HandlePlaceOrder = async (req, res) => {
             );
         }
 
-        await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } }, { session });
-
-        const rider = await Riders.findOne({
-            status: "Active",
-            verified: "Accepted",
-        })
-
-        if (rider) {
-            newOrder.assignedRider = rider._id;
-            newOrder.riderUsername = rider.username;
-            newOrder.status = "Assigned";
-        }
-
-        await newOrder.save({ session });
+        await Cart.findOneAndUpdate(
+            { userId },
+            { $set: { items: [] } },
+            { session }
+        );
 
         await session.commitTransaction();
         session.endSession();
@@ -235,15 +235,11 @@ const HandlePlaceOrder = async (req, res) => {
                 : null,
             paymentIntent,
         });
+
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-
         console.error("Error placing order:", error);
-
-        if (error.type === "StripeCardError") {
-            return res.status(400).json({ message: error.message });
-        }
 
         return res.status(500).json({
             message: "An error occurred while placing the order.",
@@ -251,6 +247,7 @@ const HandlePlaceOrder = async (req, res) => {
         });
     }
 };
+
 
 const HandleGetUserOrders = async (req, res) => {
     const { userId } = req.params;
@@ -340,14 +337,16 @@ const HandleGetAllsUserOrdersStore = async (req, res) => {
 
 const HandleGetSingleOrder = async (req, res) => {
     const { orderId } = req.params;
+
     try {
         const order = await Order.findById(orderId)
-            .populate("items.productId", "title price discountPrice productImage riderUsername")
+            .populate("items.productId", "title price discountPrice productImage")
             .populate("items.storeID", "storeLatitude storeLongitude storeName logo")
-            .populate("items.riderID", "riderLatitude riderLongitude username phone profile_image vehicleType")
+            .populate("assignedRider", "riderLatitude riderLongitude username phone profile_image vehicleType"); // 🔥 Rider outside items
 
-        if (!order) return res.status(404).json({ message: "Order not found" });
-        console.log(order);
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
 
         res.status(200).json(order);
     } catch (error) {
@@ -355,6 +354,7 @@ const HandleGetSingleOrder = async (req, res) => {
         res.status(500).json({ message: "Error fetching order", error });
     }
 };
+
 
 const HandleUpdateOrderStatus = async (req, res) => {
     const { orderId } = req.params;

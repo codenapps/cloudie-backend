@@ -212,7 +212,7 @@ const HandleSignupStore = async (req, res) => {
 
         autoMailer(
             {
-                from: 'wasifmehmood903@gmail.com',
+                from: 'team@codenapps.com',
                 to: newStore.email,
                 subject: 'OTP VERIFICATION CODE',
                 message: `<h3>Your OTP Verification Code Is: </h3>
