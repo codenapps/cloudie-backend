@@ -26,7 +26,7 @@ const createReview = async (req, res) => {
 
         const newReview = new ReviewModel({
             product: productId,
-            user: userId,
+            userId: userId,
             rating,
             comment,
         });
@@ -45,7 +45,7 @@ const getProductReviews = async (req, res) => {
         const { productId } = req.params;
 
         const reviews = await ReviewModel.find({ product: productId })
-            .populate('user', 'username profile_image')
+            .populate('userId', 'username profile_image')
             .sort({ createdAt: -1 });
 
         if (reviews.length === 0) {
@@ -66,18 +66,15 @@ const createRiderReview = async (req, res) => {
 
         console.log("REQ PARAM userId:", userId);
 
-        // 1️⃣ Check if userId is valid
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             return res.status(400).json({ message: "Invalid userId format" });
         }
 
-        // Validate user exists
         const user = await UserModel.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Create new review
         const newReview = new ReviewRiderSchema({
             user: userId,
             rating,
