@@ -5,7 +5,6 @@ import User from "../models/User.js";
 import autoMailer from "../utils/AutoMailer.js";
 import { generatePass } from "../utils/PasswordGenerator.js";
 import Order from "../models/OrderModel.js";
-
 import { v2 as cloudinary } from "cloudinary";
 
 
@@ -17,7 +16,6 @@ const HandleInviteRiders = async (req, res) => {
         const { inviteList, inviteType } = req.body;
 
         const findAdmin = await AdminModel.findById(adminID);
-
 
         if (!findAdmin) {
             return res.status(404).json({ message: "Unauthorized" });
@@ -32,7 +30,6 @@ const HandleInviteRiders = async (req, res) => {
 
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-            // Validate emails first
             const validationResults = await Promise.all(inviteList.map(async (item) => {
                 if (!emailRegex.test(item)) {
                     return { email: item, error: 'Invalid email format' };
@@ -53,7 +50,6 @@ const HandleInviteRiders = async (req, res) => {
                 return res.status(400).json({ message: `Validation failed: ${errorMessages}` });
             }
 
-            // If all emails are valid, proceed to create riders and send emails
             const createRiders = await Promise.all(validationResults.map(async (result) => {
                 const password = generatePass();
                 const createRider = new RiderModel({
@@ -86,7 +82,6 @@ const HandleInviteRiders = async (req, res) => {
 // /api/riders/riderID/submit-rider-verification
 const HandleSubmitVerification = async (req, res) => {
     try {
-
         const { riderID } = req.params;
         const {
             username,
@@ -101,8 +96,6 @@ const HandleSubmitVerification = async (req, res) => {
             riderLatitude,
             riderLongitude
         } = req.body;
-
-
 
         const findRider = await RiderModel.findById(riderID);
         if (!findRider) {
@@ -121,7 +114,6 @@ const HandleSubmitVerification = async (req, res) => {
             resource_type: 'image',
             folder: "riders-w9",
         }) : findRider.profile_image;
-
 
         const otpCode = await Math.floor(
             100000 + Math.random() * 900000
@@ -144,8 +136,6 @@ const HandleSubmitVerification = async (req, res) => {
         findRider.postalCode = postalCode || findRider.postalCode
         findRider.riderLatitude = riderLatitude || findRider.riderLatitude
         findRider.riderLongitude = riderLongitude || findRider.riderLongitude
-
-        console.log(findRider, "findRider");
 
         await findRider.save();
 
@@ -181,9 +171,7 @@ const HandleSubmitVerification = async (req, res) => {
             riderLongitude: findRider.riderLongitude
         }
 
-
         return res.status(200).json({ message: "Verification Submitted Successfully", token });
-
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -194,7 +182,6 @@ const HandleSubmitVerification = async (req, res) => {
 // /api/riders/verify-rider
 const RiderOtpVerify = async (req, res) => {
     try {
-
         const { email, OtpCode } = req.body;
         const findUser = await RiderModel.findOne({ email: email })
 
@@ -207,7 +194,6 @@ const RiderOtpVerify = async (req, res) => {
         }
 
         if (findUser.OtpCode !== Number(OtpCode)) {
-
             return res.status(404).json({ message: "Invalid OTP Verification Code" })
         }
 
@@ -233,8 +219,8 @@ const RiderOtpVerify = async (req, res) => {
                 riderLatitude: findUser.riderLatitude,
                 riderLongitude: findUser.riderLongitude
             }
-            return res.status(200).json({ message: "OTP Verified Successfully", token });
 
+            return res.status(200).json({ message: "OTP Verified Successfully", token });
         } else {
             return res.status(404).json({ message: "OTP has expired or is invalid" });
         }
@@ -289,7 +275,6 @@ const HandleGetRiders = async (req, res) => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-
 
 // @PATCH
 // /api/riders/:riderID/update-riders
@@ -374,7 +359,6 @@ const HandleUpdateRiders = async (req, res) => {
         }
 
         res.status(200).json({ message: "Rider Updated Successfully", token });
-
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -456,7 +440,6 @@ const getSingleRiderDetails = async (req, res) => {
 const getSingleRiderDeliveredOrders = async (req, res) => {
     try {
         const { riderId } = req.params;
-
         const rider = await RiderModel.findById(riderId);
         if (!rider) {
             return res.status(404).json({ message: "Rider not found" });

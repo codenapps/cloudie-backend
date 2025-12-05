@@ -11,7 +11,6 @@ import AdminModel from "../models/AdminModel.js";
 const HandleCreateProduct = async (req, res) => {
     try {
         const { storeID } = req.params;
-
         const {
             title,
             desc,
@@ -31,14 +30,12 @@ const HandleCreateProduct = async (req, res) => {
         console.log(category, "category");
 
 
-        // Clean up the slug
         const cleanedSlug = slug.toLowerCase()
             .replace(/\s+/g, '-')
             .replace(/[^\w-]+/g, '')
             .replace(/--+/g, '-')
             .replace(/^-+/, '')
             .replace(/-+$/, '');
-
 
         const findStore = await StoreOwnerModel.findById(storeID);
         if (!findStore) {
@@ -148,14 +145,12 @@ const HandleUpdateProduct = async (req, res) => {
 
         console.log("categorgdhfghy", category);
 
-
         const cleanedSlug = slug.toLowerCase()
             .replace(/\s+/g, '-')
             .replace(/[^\w-]+/g, '')
             .replace(/--+/g, '-')
             .replace(/^-+/, '')
             .replace(/-+$/, '');
-
 
         const findStore = await StoreOwnerModel.findById(storeID);
         if (!findStore) {
@@ -231,7 +226,6 @@ const HandleUpdateProduct = async (req, res) => {
 
         await product.save();
         return res.status(200).json({ message: "Product Updated Successfully" });
-
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -240,324 +234,370 @@ const HandleUpdateProduct = async (req, res) => {
 
 // @GET
 // /api/products/get-products?id={cookieID}&category={categoryId}&keyword={search}&limit={limit}&count={count}
+// const HandleGetProducts = async (req, res) => {
+//     try {
+//         const { category, keyword, id } = req.query;
+//         const { page = 1, limit = 10 } = req.query;
+
+//         const findUser = await User.findById(id) || await StoreOwnerModel.findById(id) || await AdminModel.findById(id);
+
+//         const findStores = await StoreOwnerModel.find({ status: ['Active'] })
+
+//         const extractStoreIDs = findStores.map((store) => store._id.toString())
+
+//         if (page <= 0 || limit <= 0) {
+//             return res.status(400).json({ message: "Invalid page or limit" });
+//         }
+
+//         let products;
+
+//         if (findUser) {
+//             if (findUser.role.includes("StoreOwner")) {
+//                 if (category && keyword) {
+//                     products = await ProductModel.find({ storeID: id, category: { $in: category }, title: { $regex: keyword, $options: 'i' } }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 } else if (!category && keyword) {
+//                     products = await ProductModel.find({ storeID: id, title: { $regex: keyword, $options: 'i' } }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 } else if (category && !keyword) {
+//                     products = await ProductModel.find({ storeID: id, category: { $in: category } }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 } else {
+//                     products = await ProductModel.find({ storeID: id }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 }
+//                 const totalPages = await ProductModel.countDocuments({ storeID: id }).exec();
+//                 return res.status(200).json({
+//                     products: products,
+//                     totalPages: Math.ceil(totalPages / limit),
+//                     currentPage: Number(page),
+//                 })
+
+//             } else if (findUser.role.includes("Admin")) {
+
+//                 if (category && keyword) {
+//                     products = await ProductModel.find({ category: { $in: category }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 } else if (!category && keyword) {
+//                     products = await ProductModel.find({ title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 } else if (category && !keyword) {
+//                     products = await ProductModel.find({ category: { $in: category }, status: ['Active'] }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 } else {
+//                     products = await ProductModel.find({ status: ['Active'] }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 }
+//                 const totalPages = await ProductModel.countDocuments({ status: ['Active'] }).exec(); return res.status(200).json({
+//                     products: products,
+//                     totalPages: Math.ceil(totalPages / limit),
+//                     currentPage: Number(page),
+//                 })
+
+//             } else if (findUser.role.includes("User")) {
+//                 const findStores = await StoreOwnerModel.find({ status: ['Active'] })
+//                 const extractStoreIDs = findStores.map((store) => store._id.toString())
+
+//                 if (category && keyword) {
+//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 } else if (!category && keyword) {
+//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 } else if (category && !keyword) {
+//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, status: ['Active'] }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 } else {
+//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 }
+//                 const totalPages = await ProductModel.countDocuments({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).exec();
+//                 return res.status(200).json({
+//                     products: products,
+//                     totalPages: Math.ceil(totalPages / limit),
+//                     currentPage: Number(page),
+//                 })
+//             } else {
+//                 if (category && keyword) {
+//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 } else if (!category && keyword) {
+//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 } else if (category && !keyword) {
+//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, status: ['Active'] }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 } else {
+//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).populate({
+//                         path: 'category',
+//                         model: "categories",
+//                         select: ""
+//                     }).populate({
+//                         path: 'storeID',
+//                         model: 'StoreOwner',
+//                         select: '-password'
+//                     }).limit(limit * 1)
+//                         .skip((page - 1) * limit)
+//                         .exec();
+//                 }
+//                 const totalPages = await ProductModel.countDocuments({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).exec();
+//                 return res.status(200).json({
+//                     products: products,
+//                     totalPages: Math.ceil(totalPages / limit),
+//                     currentPage: Number(page),
+//                 })
+
+//             }
+//         } else {
+//             if (category && keyword) {
+//                 products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
+//                     path: 'category',
+//                     model: "categories",
+//                     select: ""
+//                 }).populate({
+//                     path: 'storeID',
+//                     model: 'StoreOwner',
+//                     select: '-password'
+//                 }).limit(limit * 1)
+//                     .skip((page - 1) * limit)
+//                     .exec();
+//             } else if (!category && keyword) {
+//                 products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
+//                     path: 'category',
+//                     model: "categories",
+//                     select: ""
+//                 }).populate({
+//                     path: 'storeID',
+//                     model: 'StoreOwner',
+//                     select: '-password'
+//                 }).limit(limit * 1)
+//                     .skip((page - 1) * limit)
+//                     .exec();
+//             } else if (category && !keyword) {
+//                 products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, status: ['Active'] }).populate({
+//                     path: 'category',
+//                     model: "categories",
+//                     select: ""
+//                 }).populate({
+//                     path: 'storeID',
+//                     model: 'StoreOwner',
+//                     select: '-password'
+//                 }).limit(limit * 1)
+//                     .skip((page - 1) * limit)
+//                     .exec();
+//             } else {
+//                 products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).populate({
+//                     path: 'category',
+//                     model: "categories",
+//                     select: ""
+//                 }).populate({
+//                     path: 'storeID',
+//                     model: 'StoreOwner',
+//                     select: '-password'
+//                 }).limit(limit * 1)
+//                     .skip((page - 1) * limit)
+//                     .exec();
+//             }
+//             const totalPages = await ProductModel.countDocuments({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).exec();
+//             return res.status(200).json({
+//                 products: products,
+//                 totalPages: Math.ceil(totalPages / limit),
+//                 currentPage: Number(page),
+//             })
+//         }
+//     } catch (error) {
+//         console.log(error);
+//         res.status(500).json({ message: "Internal Server Error" });
+//     }
+// }
+
 const HandleGetProducts = async (req, res) => {
     try {
         const { category, keyword, id } = req.query;
-        const { page = 1, limit = 10 } = req.query;
+        let { page = 1, limit = 10 } = req.query;
+        page = parseInt(page);
+        limit = parseInt(limit);
 
         const findUser = await User.findById(id) || await StoreOwnerModel.findById(id) || await AdminModel.findById(id);
 
-        const findStores = await StoreOwnerModel.find({ status: ['Active'] })
+        const findStores = await StoreOwnerModel.find({ status: 'Active' });
+        const extractStoreIDs = findStores.map(store => store._id.toString());
 
-        const extractStoreIDs = findStores.map((store) => store._id.toString())
+        let filter = { status: 'Active' };
 
-        if (page <= 0 || limit <= 0) {
-            return res.status(400).json({ message: "Invalid page or limit" });
-        }
+        // Apply category filter
+        if (category) filter.category = { $in: Array.isArray(category) ? category : [category] };
 
-        let products;
+        // Apply store filter
+        if (findUser && findUser.role.includes('StoreOwner')) filter.storeID = id;
+        else filter.storeID = { $in: extractStoreIDs };
 
-        if (findUser) {
-            if (findUser.role.includes("StoreOwner")) {
-                if (category && keyword) {
-                    products = await ProductModel.find({ storeID: id, category: { $in: category }, title: { $regex: keyword, $options: 'i' } }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                } else if (!category && keyword) {
-                    products = await ProductModel.find({ storeID: id, title: { $regex: keyword, $options: 'i' } }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                } else if (category && !keyword) {
-                    products = await ProductModel.find({ storeID: id, category: { $in: category } }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                } else {
-                    products = await ProductModel.find({ storeID: id }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                }
-                const totalPages = await ProductModel.countDocuments({ storeID: id }).exec();
-                return res.status(200).json({
-                    products: products,
-                    totalPages: Math.ceil(totalPages / limit),
-                    currentPage: Number(page),
-                })
+        // Apply keyword filter
+        if (keyword) filter.title = { $regex: keyword, $options: 'i' };
 
-            } else if (findUser.role.includes("Admin")) {
+        // Get total count for pagination
+        const totalProducts = await ProductModel.countDocuments(filter);
 
-                if (category && keyword) {
-                    products = await ProductModel.find({ category: { $in: category }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                } else if (!category && keyword) {
-                    products = await ProductModel.find({ title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                } else if (category && !keyword) {
-                    products = await ProductModel.find({ category: { $in: category }, status: ['Active'] }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                } else {
-                    products = await ProductModel.find({ status: ['Active'] }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                }
-                const totalPages = await ProductModel.countDocuments({ status: ['Active'] }).exec(); return res.status(200).json({
-                    products: products,
-                    totalPages: Math.ceil(totalPages / limit),
-                    currentPage: Number(page),
-                })
+        // Fetch paginated products
+        const products = await ProductModel.find(filter)
+            .populate({ path: 'category', model: 'categories' })
+            .populate({ path: 'storeID', model: 'StoreOwner', select: '-password' })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .exec();
 
-            } else if (findUser.role.includes("User")) {
-                const findStores = await StoreOwnerModel.find({ status: ['Active'] })
-                const extractStoreIDs = findStores.map((store) => store._id.toString())
-
-                if (category && keyword) {
-                    products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                } else if (!category && keyword) {
-                    products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                } else if (category && !keyword) {
-                    products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, status: ['Active'] }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                } else {
-                    products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                }
-                const totalPages = await ProductModel.countDocuments({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).exec();
-                return res.status(200).json({
-                    products: products,
-                    totalPages: Math.ceil(totalPages / limit),
-                    currentPage: Number(page),
-                })
-            } else {
-                if (category && keyword) {
-                    products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                } else if (!category && keyword) {
-                    products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                } else if (category && !keyword) {
-                    products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, status: ['Active'] }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                } else {
-                    products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).populate({
-                        path: 'category',
-                        model: "categories",
-                        select: ""
-                    }).populate({
-                        path: 'storeID',
-                        model: 'StoreOwner',
-                        select: '-password'
-                    }).limit(limit * 1)
-                        .skip((page - 1) * limit)
-                        .exec();
-                }
-                const totalPages = await ProductModel.countDocuments({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).exec();
-                return res.status(200).json({
-                    products: products,
-                    totalPages: Math.ceil(totalPages / limit),
-                    currentPage: Number(page),
-                })
-
-            }
-        } else {
-            if (category && keyword) {
-                products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-                    path: 'category',
-                    model: "categories",
-                    select: ""
-                }).populate({
-                    path: 'storeID',
-                    model: 'StoreOwner',
-                    select: '-password'
-                }).limit(limit * 1)
-                    .skip((page - 1) * limit)
-                    .exec();
-            } else if (!category && keyword) {
-                products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-                    path: 'category',
-                    model: "categories",
-                    select: ""
-                }).populate({
-                    path: 'storeID',
-                    model: 'StoreOwner',
-                    select: '-password'
-                }).limit(limit * 1)
-                    .skip((page - 1) * limit)
-                    .exec();
-            } else if (category && !keyword) {
-                products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, status: ['Active'] }).populate({
-                    path: 'category',
-                    model: "categories",
-                    select: ""
-                }).populate({
-                    path: 'storeID',
-                    model: 'StoreOwner',
-                    select: '-password'
-                }).limit(limit * 1)
-                    .skip((page - 1) * limit)
-                    .exec();
-            } else {
-                products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).populate({
-                    path: 'category',
-                    model: "categories",
-                    select: ""
-                }).populate({
-                    path: 'storeID',
-                    model: 'StoreOwner',
-                    select: '-password'
-                }).limit(limit * 1)
-                    .skip((page - 1) * limit)
-                    .exec();
-            }
-            const totalPages = await ProductModel.countDocuments({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).exec();
-            return res.status(200).json({
-                products: products,
-                totalPages: Math.ceil(totalPages / limit),
-                currentPage: Number(page),
-            })
-        }
+        res.status(200).json({
+            products,
+            totalPages: Math.ceil(totalProducts / limit),
+            currentPage: page,
+            totalProducts
+        });
 
     } catch (error) {
-        console.log(error);
+        console.error(error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-}
+};
 
 // @DELETE
 ///api/products/:storeID/delete-products/:prodID
 const HandleDeleteProduct = async (req, res) => {
     try {
-
         const { productID, storeID } = req.params;
 
         const findStore = await StoreOwnerModel.findById(storeID);
@@ -615,6 +655,7 @@ const HandleGetBestSellers = async (req, res) => {
         res.status(500).json({ message: 'Internal server error', error });
     }
 };
+
 
 export {
     HandleCreateProduct,

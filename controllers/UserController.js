@@ -16,7 +16,6 @@ const HandleGetAllUsers = (req, res) => {
 // /api/user/signup-user
 const HandleSignupUser = async (req, res) => {
     try {
-
         const {
             username,
             email,
@@ -99,7 +98,6 @@ const HandleSignupUser = async (req, res) => {
         }
 
         res.status(201).json({ message: "Registered Successfully", token: token });
-
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -160,7 +158,6 @@ const HandleVerifyUserOtp = async (req, res) => {
 // /api/user/:userID/update-user
 const HandleUpdateUser = async (req, res) => {
     try {
-
         const {
             userID
         } = req.params;
@@ -183,7 +180,6 @@ const HandleUpdateUser = async (req, res) => {
         if (!findUser) {
             return res.status(404).json({ message: "User Not Found" });
         }
-
 
         findUser.username = username || findUser.username
         findUser.email = email?.toLowerCase() || findUser.email
@@ -242,7 +238,6 @@ const HandleGetSingleUser = async (req, res) => {
 const HandleGetAllUser = async (req, res) => {
     try {
         let { page = 1, limit = 5, keyword = "" } = req.query;
-
         page = parseInt(page);
         limit = parseInt(limit);
 
@@ -254,7 +249,7 @@ const HandleGetAllUser = async (req, res) => {
                 $or: [
                     { username: { $regex: keyword, $options: "i" } },
                     { email: { $regex: keyword, $options: "i" } },
-                    { phone: { $regex: keyword, $options: "i" } },
+                    // { phone: { $regex: keyword, $options: "i" } },
                 ],
             }
             : {};
@@ -264,7 +259,7 @@ const HandleGetAllUser = async (req, res) => {
                 $or: [
                     { username: { $regex: keyword, $options: "i" } },
                     { email: { $regex: keyword, $options: "i" } },
-                    { phone: { $regex: keyword, $options: "i" } },
+                    // { phone: { $regex: keyword, $options: "i" } },
                 ],
             }
             : {};
@@ -292,7 +287,11 @@ const HandleGetAllUser = async (req, res) => {
         });
     } catch (error) {
         console.error("Error fetching users:", error);
-        res.status(500).json({ success: false, message: "Internal Server Error" });
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            error: error.message,
+        });
     }
 };
 

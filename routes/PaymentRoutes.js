@@ -3,8 +3,12 @@ import { createPaymentIntent, getPaymentDetails, updatePaymentStatus } from "../
 
 const router = express.Router();
 
+
 router.post('/create-payment-intent', createPaymentIntent);
+
 router.get('/:userId', getPaymentDetails);
+
 router.patch('/update-status', updatePaymentStatus);
+
 
 export default router;

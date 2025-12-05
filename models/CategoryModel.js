@@ -23,6 +23,7 @@ const CategoryModel = new Schema({
         type: String,
         default: 'https://res.cloudinary.com/dhuhpslek/image/upload/fl_preserve_transparency/v1721946752/imageszzzz_sn7njl.jpg?_s=public-apps'
     },
+    
 }, { timestamps: true });
 
 export default mongoose.model("categories", CategoryModel);

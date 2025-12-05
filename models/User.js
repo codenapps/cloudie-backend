@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 const UserSchema = new Schema({
-    // userId: { type: mongoose.Schema.Types.ObjectId },
     username: {
         type: String,
         require: true
@@ -66,6 +65,7 @@ const UserSchema = new Schema({
         type: Number,
         required: true
     },
+    
 }, { timestamps: true });
 
 export default mongoose.model("user", UserSchema);

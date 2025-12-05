@@ -20,17 +20,17 @@ const HandleGetAllUsers = (req, res) => {
     }
 }
 
-
-
 // @POST 
 // ENDPOINT: /api/admin/create-admin
 const HandleCreateAdmin = async (req, res) => {
     try {
         const { username, email, password, role } = req.body;
+
         const findAdmin = await AdminSchema.find();
         if (findAdmin.length !== 0) {
             return res.status(400).json({ messsage: "Invalid Signup Request" })
         }
+
         const newAdmin = new AdminSchema({
             username,
             email,
@@ -38,12 +38,14 @@ const HandleCreateAdmin = async (req, res) => {
             role
         });
         await newAdmin.save();
+
         const token = {
             username: newAdmin.username,
             email: newAdmin.email,
             password: newAdmin.password,
             role: newAdmin.role,
         }
+
         res.status(201).json({ message: "Admin Signed Up Successfully", token: token });
     } catch (error) {
         console.log(error);
@@ -57,20 +59,24 @@ const HandleUpdateAdmin = async (req, res) => {
     try {
         const { id } = req.params;
         const { username, email, password } = req.body;
+
         const findAdmin = await AdminSchema.findById(id);
         if (!findAdmin) {
             return res.status(404).json({ message: "Admin Not Found" });
         }
+
         findAdmin.username = username || findAdmin.username
         findAdmin.email = email || findAdmin.email
         findAdmin.password = password || findAdmin.password
         await findAdmin.save();
+
         const token = {
             username: findAdmin.username,
             email: findAdmin.email,
             password: findAdmin.password,
             role: findAdmin.role,
         }
+
         res.status(200).json({ message: "Admin Updated Successfully", token });
     } catch (error) {
         console.log(error);
@@ -86,6 +92,7 @@ const HandleGetAdmin = async (req, res) => {
         if (findAdmin.length === 0) {
             return res.status(404).json({ message: "Admin Doesn't Exist" });
         }
+
         const findStore = await StoreOwnerModel.find({ verified: 'Accepted' });
 
         const map = await Promise.all(findStore.map(async (item) => {
@@ -124,7 +131,6 @@ const HandleGetAdmin = async (req, res) => {
 // /api/admin/approve-store/storeID 
 const HandleVerfiyStore = async (req, res) => {
     try {
-
         const { storeID } = req.params;
         const { verified } = req.body;
         const findStore = await StoreOwnerModel.findById(storeID);
@@ -191,19 +197,18 @@ const HandleGetAllStores = async (req, res) => {
         const isAdmin =
             findUser.role === "Admin" ||
             (Array.isArray(findUser.role) && findUser.role.includes("Admin"));
-
         if (!isAdmin) {
             return res.status(401).json({ message: "Unauthorized Request" });
         }
 
         const filter = keyword
             ? {
-                  $or: [
-                      { storeName: { $regex: keyword, $options: "i" } },
-                      { email: { $regex: keyword, $options: "i" } },
-                      { phone: { $regex: keyword, $options: "i" } },
-                  ],
-              }
+                $or: [
+                    { storeName: { $regex: keyword, $options: "i" } },
+                    { email: { $regex: keyword, $options: "i" } },
+                    { phone: { $regex: keyword, $options: "i" } },
+                ],
+            }
             : {};
 
         const stores = await StoreOwnerModel.find(filter)
@@ -255,12 +260,12 @@ const HandleGetAllStores = async (req, res) => {
 
 const HandleGetAdminDashboard = async (req, res) => {
     try {
-
         const { id } = req.params;
         const findAdmin = await AdminSchema.findById(id);
         if (!findAdmin) {
             return res.status(404).json({ message: "Admin Not Found" });
         }
+
         if (findAdmin.role.includes("Admin")) {
             const totalUsers = await User.countDocuments();
             const findStores = await StoreOwnerModel.countDocuments();
@@ -288,10 +293,11 @@ const HandleGetAdminDashboard = async (req, res) => {
 }
 
 const HandleGetChartData = async (req, res) => {
-    const { adminId } = req.params;
-    const { month, year } = req.query;
-
+    
     try {
+        const { adminId } = req.params;
+        const { month, year } = req.query;
+        
         const findStore = await StoreOwnerModel.findById(adminId) || await AdminModel.findById(adminId);
         if (!findStore) {
             return res.status(404).json({ message: 'Admin not found' });

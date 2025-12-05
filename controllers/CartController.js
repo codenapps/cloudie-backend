@@ -3,20 +3,18 @@ import Product from "../models/ProductModel.js"
 import Cart from "../models/CartModel.js"
 
 const HandleAddToCart = async (req, res) => {
-    const { userId, productId, stock } = req.body;
-    const session = await mongoose.startSession();
-    session.startTransaction();
     try {
-        const product = await Product.findById(productId).session(session);
+        const { userId, productId, stock } = req.body;
+        const session = await mongoose.startSession();
+        session.startTransaction();
 
+        const product = await Product.findById(productId).session(session);
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        console.log(product, "prodyuct");
-
-
         let cart = await Cart.findOne({ userId }).session(session);
+
         const storeID = product.storeID;
         if (!cart) {
             cart = new Cart({ userId, items: [{ productId, stock, storeID }] });
@@ -42,19 +40,25 @@ const HandleAddToCart = async (req, res) => {
 };
 
 const HandleGetCart = async (req, res) => {
-    const cart = await Cart.findOne({ userId: req.params.userId }).populate('items.productId', 'title discountPrice variations productImage galleryImages status stock');
-    res.json(cart);
+    try {
+        const cart = await Cart.findOne({ userId: req.params.userId })
+        .populate('items.productId', 'title discountPrice variations productImage galleryImages status stock');
+
+        res.json(cart);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching cart', error });
+    }
 };
 
-const HandleUpdateCart = async (req, res) => {
-    const { userId } = req.params;
-    const { productId, stock } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(productId) || stock < 0) {
-        return res.status(400).json({ message: 'Invalid userId, productId, or stock value' });
-    }
-
+const HandleUpdateCart = async (req, res) => { 
     try {
+        const { userId } = req.params;
+        const { productId, stock } = req.body;
+    
+        if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(productId) || stock < 0) {
+            return res.status(400).json({ message: 'Invalid userId, productId, or stock value' });
+        }
+
         const cart = await Cart.findOne({ userId });
         if (!cart) return res.status(404).json({ message: 'Cart not found' });
 
@@ -79,14 +83,14 @@ const HandleUpdateCart = async (req, res) => {
     }
 };
 
-const HandleDeleteCartItem = async (req, res) => {
-    const { userId, productId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(productId)) {
-        return res.status(400).json({ message: 'Invalid userId or productId' });
-    }
-
+const HandleDeleteCartItem = async (req, res) => {    
     try {
+        const { userId, productId } = req.params;
+    
+        if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(productId)) {
+            return res.status(400).json({ message: 'Invalid userId or productId' });
+        }
+        
         const cart = await Cart.findOne({ userId });
         if (!cart) {
             return res.status(404).json({ message: 'Cart not found' });

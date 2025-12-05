@@ -5,10 +5,9 @@ const router = express.Router();
 
 router.post("/:userOne/create-connection/:userTwo", HandleCreateConnection)
 
-router.get("/:userOne/get-connection", HandleGetConnections)
-
-
 router.post("/:senderID/send-messages/:recieverID/:connectionID", HandleChat)
+
+router.get("/:userOne/get-connection", HandleGetConnections)
 
 router.get("/:connectionID/get-chats", handleGetChats)
 

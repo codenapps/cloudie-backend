@@ -29,6 +29,7 @@ const SubscriptionSchema = new Schema({
         enum: ['Active', 'Suspended', 'Expired', 'Cancelled'],
         default: ['Active']
     }
+    
 }, { timestamps: true });
 
 export default mongoose.model("Subscription", SubscriptionSchema);

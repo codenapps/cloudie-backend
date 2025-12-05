@@ -11,9 +11,9 @@ const router = express.Router();
 
 router.post("/create-category/:adminID", HandleCreateCategory)
 
-router.patch("/update-category/:adminID/:catID", HandleUpdateCategory)
-
 router.get("/get-all-categories", HandleGetCategories)
+
+router.patch("/update-category/:adminID/:catID", HandleUpdateCategory)
 
 router.delete("/:adminID/delete-category/:catID", HandleDeleteCategory)
 

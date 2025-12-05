@@ -16,6 +16,7 @@ const ReviewRiderSchema = new Schema({
     comment: {
         type: String,
     }
+    
 }, { timestamps: true });
 
 export default mongoose.model('riderReview', ReviewRiderSchema);

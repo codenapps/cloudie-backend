@@ -56,11 +56,9 @@ const OrderSchema = new mongoose.Schema({
     },
     latitude: {
         type: Number,
-        // required: true
     },
     longitude: {
         type: Number,
-        // required: true
     },
     assignedRider: {
         type: mongoose.Schema.Types.ObjectId,
@@ -85,10 +83,7 @@ const OrderSchema = new mongoose.Schema({
         enum: ["Paid", "Unpaid"],
         default: "Paid",
     },
-    // orderDate: {
-    //     type: Date,
-    //     default: Date.now
-    // },
+    
 }, { timestamps: true });
 
 export default mongoose.model('Order', OrderSchema);

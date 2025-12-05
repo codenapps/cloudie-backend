@@ -35,7 +35,6 @@ const ProductModel = new Schema({
         ref: 'categories',
         required: false
     },
-
     netWeight: {
         type: String,
     },
@@ -48,7 +47,6 @@ const ProductModel = new Schema({
     height: {
         type: String,
     },
-
     variations: [{
         title: {
             type: String,
@@ -75,7 +73,6 @@ const ProductModel = new Schema({
             type: Number,
         },
     }],
-
     productImage: {
         type: String,
         default: 'https://res.cloudinary.com/dhuhpslek/image/upload/fl_preserve_transparency/v1721946752/imageszzzz_sn7njl.jpg?_s=public-apps'

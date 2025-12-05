@@ -56,7 +56,6 @@ const HandleCreateCategory = async (req, res) => {
 // /api/category/update-category/:adminID/:catID
 const HandleUpdateCategory = async (req, res) => {
     try {
-
         const { adminID, catID } = req.params;
         const { name, slug, status } = req.body;
 
@@ -82,6 +81,7 @@ const HandleUpdateCategory = async (req, res) => {
             ]
 
         });
+        
         if (isExist) {
             return res.status(400).json({ message: "Category Already Exists!" })
         }

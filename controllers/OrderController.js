@@ -6,123 +6,17 @@ import RiderModel from "../models/RiderModel.js";
 import Card from "../models/CardModel.js";
 import Stripe from 'stripe';
 import Riders from "../models/RiderModel.js";
-
 const stripe = new Stripe("sk_test_51QePvkArP8SrFQvbyuj6Tve2Nw504Ef9beVL24eFCUjgprmGlfnjEQpJkEChOKMlSBeK4vzoed5OJ3oUsDZeYvzC00oVh0ZEe1");
 
 
-// const HandlePlaceOrder = async (req, res) => {
-//     const { latitude, longitude, message } = req.body;
-//     const { userId } = req.params;
-//     const session = await mongoose.startSession();
-//     session.startTransaction();
-
-//     try {
-//         const cart = await Cart.findOne({ userId })
-//             .populate("items.productId", "title price discountPrice stock storeID")
-//             .session(session);
-
-//         if (!cart || cart.items.length === 0) {
-//             await session.abortTransaction();
-//             return res.status(404).json({ message: "No items in cart" });
-//         }
-
-//         const orderItems = cart.items.map((item) => {
-//             const product = item.productId;
-//             const unitPrice = product.discountPrice || product.price;
-//             const subtotal = unitPrice * item.stock;
-
-//             return {
-//                 productId: product._id,
-//                 quantity: item.stock,
-//                 price: unitPrice,
-//                 subtotal,
-//                 storeID: product.storeID,
-//             };
-//         });
-
-//         const totalAmount = orderItems.reduce((acc, item) => acc + item.subtotal, 0);
-
-//         const card = await Card.findOne({ userId, isDefault: true });
-//         if (!card) {
-//             await session.abortTransaction();
-//             return res.status(400).json({ message: "No default card found. Please add a card first." });
-//         }
-
-//         const paymentIntent = await stripe.paymentIntents.create({
-//             amount: Math.round(totalAmount * 100),
-//             currency: "usd",
-//             customer: card.stripeCustomerId,
-//             payment_method: card.stripePaymentMethodId,
-//             off_session: true,
-//             confirm: true,
-//         });
-
-//         if (paymentIntent.status !== "succeeded") {
-//             await session.abortTransaction();
-//             return res.status(400).json({ message: "Payment failed", paymentIntent });
-//         }
-
-//         const newOrder = new Order({
-//             userId,
-//             latitude,
-//             longitude,
-//             message,
-//             items: orderItems.map(({ productId, quantity, price, storeID }) => ({
-//                 productId,
-//                 quantity,
-//                 price,
-//                 storeID
-//             })),
-//             totalAmount,
-//             status: "InProgress",
-//         });
-
-//         await newOrder.save({ session });
-
-//         for (const item of orderItems) {
-//             await Product.findByIdAndUpdate(
-//                 item.productId,
-//                 { $inc: { stock: -item.quantity } },
-//                 { session }
-//             );
-//         }
-
-//         await Cart.findOneAndUpdate(
-//             { userId },
-//             { $set: { items: [] } },
-//             { session }
-//         );
-
-//         await session.commitTransaction();
-//         session.endSession();
-
-//         res.status(201).json({
-//             message: "Order placed and payment successful",
-//             order: newOrder,
-//             paymentIntent
-//         });
-
-//     } catch (error) {
-//         await session.abortTransaction();
-//         session.endSession();
-//         console.error(error);
-
-//         if (error.type === "StripeCardError") {
-//             return res.status(400).json({ message: error.message });
-//         }
-
-//         res.status(500).json({ message: "Error placing order", error });
-//     }
-// };
-
 const HandlePlaceOrder = async (req, res) => {
-    const { latitude, longitude, message } = req.body;
-    const { userId } = req.params;
-
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
+        const { latitude, longitude, message } = req.body;
+        const { userId } = req.params;
+
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
         const cart = await Cart.findOne({ userId })
             .populate("items.productId", "title price discountPrice stock storeID")
             .session(session);
@@ -259,11 +153,10 @@ const HandlePlaceOrder = async (req, res) => {
     }
 };
 
-
 const HandleGetUserOrders = async (req, res) => {
-    const { userId } = req.params;
-
     try {
+        const { userId } = req.params;
+
         const orders = await Order.find({ userId })
             .populate("items.productId", "title price discountPrice productImage")
             .populate("assignedRider", "username email phone vehicleType profile_image status verified")
@@ -282,35 +175,137 @@ const HandleGetUserOrders = async (req, res) => {
 };
 
 const HandleGetUserOrdersStore = async (req, res) => {
-    const { storeID } = req.params;
-    const { page = 1, limit = 10 } = req.query;
-
     try {
-        const skip = (page - 1) * limit;
+        const { storeID } = req.params;
+        const { page = 1, limit = 10, keyword = "" } = req.query;
 
-        const orders = await Order.find({ "items.storeID": storeID })
-            .populate("items.productId", "title price discountPrice productImage")
-            .populate("userId", "username")
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(parseInt(limit));
+        const pageNumber = parseInt(page);
+        const limitNumber = parseInt(limit);
+        const skip = (pageNumber - 1) * limitNumber;
+
+        const storeObjectId = new mongoose.Types.ObjectId(storeID);
+
+        const pipeline = [
+            { $match: { "items.storeID": storeObjectId } },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "user",
+                },
+            },
+            { $unwind: "$user" },
+            { $unwind: "$items" },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "items.productId",
+                    foreignField: "_id",
+                    as: "items.product",
+                },
+            },
+            { $unwind: "$items.product" },
+        ];
+
+        if (keyword) {
+            pipeline.push({
+                $match: {
+                    $or: [
+                        { "items.product.title": { $regex: keyword, $options: "i" } },
+                        { "user.username": { $regex: keyword, $options: "i" } },
+                    ],
+                },
+            });
+        }
+
+        pipeline.push({
+            $group: {
+                _id: "$_id",
+                userId: { $first: "$user" },
+                items: { $push: "$items" },
+                totalAmount: { $first: "$totalAmount" },
+                status: { $first: "$status" },
+                message: { $first: "$message" },
+                userLatitude: { $first: "$userLatitude" },
+                userLongitude: { $first: "$userLongitude" },
+                latitude: { $first: "$latitude" },
+                longitude: { $first: "$longitude" },
+                assignedRider: { $first: "$assignedRider" },
+                riderUsername: { $first: "$riderUsername" },
+                rejectedRiders: { $first: "$rejectedRiders" },
+                paymentId: { $first: "$paymentId" },
+                paymentStatus: { $first: "$paymentStatus" },
+                createdAt: { $first: "$createdAt" },
+                updatedAt: { $first: "$updatedAt" },
+            },
+        });
+
+        pipeline.push({ $sort: { createdAt: -1 } });
+
+        pipeline.push({ $skip: skip }, { $limit: limitNumber });
+
+        const orders = await Order.aggregate(pipeline);
+
+        const countPipeline = [
+            { $match: { "items.storeID": storeObjectId } },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "user",
+                },
+            },
+            { $unwind: "$user" },
+            { $unwind: "$items" },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "items.productId",
+                    foreignField: "_id",
+                    as: "items.product",
+                },
+            },
+            { $unwind: "$items.product" },
+        ];
+
+        if (keyword) {
+            countPipeline.push({
+                $match: {
+                    $or: [
+                        { "items.product.title": { $regex: keyword, $options: "i" } },
+                        { "user.username": { $regex: keyword, $options: "i" } },
+                    ],
+                },
+            });
+        }
+
+        countPipeline.push({ $group: { _id: "$_id" } });
+
+        const totalOrdersResult = await Order.aggregate(countPipeline);
+        const totalOrders = totalOrdersResult.length;
 
         if (!orders.length) {
             return res.status(200).json({ message: "No orders found for this store." });
         }
 
-        res.status(200).json(orders);
+        res.status(200).json({
+            page: pageNumber,
+            totalPages: Math.ceil(totalOrders / limitNumber),
+            totalOrders,
+            orders,
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: "Error retrieving store orders", error });
+        res.status(500).json({ message: "Error retrieving store orders", error: error.message });
     }
 };
 
 const HandleGetAllsUserOrdersStore = async (req, res) => {
-    const { adminId } = req.params;
-    const { page = 1, limit = 10, keyword = "" } = req.query;
-
     try {
+        const { adminId } = req.params;
+        const { page = 1, limit = 10, keyword = "" } = req.query;
         const pageNumber = parseInt(page);
         const limitNumber = parseInt(limit);
         const skip = (pageNumber - 1) * limitNumber;
@@ -376,9 +371,8 @@ const HandleGetAllsUserOrdersStore = async (req, res) => {
 };
 
 const HandleGetSingleOrder = async (req, res) => {
-    const { orderId } = req.params;
-
     try {
+        const { orderId } = req.params;
         const order = await Order.findById(orderId)
             .populate("items.productId", "title price discountPrice productImage")
             .populate("items.storeID", "storeLatitude storeLongitude storeName logo")
@@ -395,17 +389,15 @@ const HandleGetSingleOrder = async (req, res) => {
     }
 };
 
-
 const HandleUpdateOrderStatus = async (req, res) => {
-    const { orderId } = req.params;
-    const { status } = req.body;
-
-    const validStatuses = ["Pending", "Shipped", "Delivered", "Cancelled"];
-    if (!validStatuses.includes(status)) {
-        return res.status(400).json({ message: "Invalid status" });
-    }
-
     try {
+        const { orderId } = req.params;
+        const { status } = req.body;
+
+        const validStatuses = ["Pending", "Shipped", "Delivered", "Cancelled"];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ message: "Invalid status" });
+        }
         const order = await Order.findByIdAndUpdate(
             orderId,
             { status },
@@ -420,144 +412,6 @@ const HandleUpdateOrderStatus = async (req, res) => {
         res.status(500).json({ message: "Error updating order status", error });
     }
 };
-
-const assignOrderToRider = async (orderId) => {
-    const order = await Order.findById(orderId);
-    if (!order) return null;
-
-    // Skip riders who already rejected this order
-    const nextRider = await RiderModel.findOne({
-        status: "Active",
-        verified: "Accepted",
-        _id: { $nin: order.rejectedRiders || [] },
-    });
-
-    if (!nextRider) return null;
-
-    order.assignedRider = nextRider._id;
-    order.status = "Assigned";
-    await order.save();
-
-    return nextRider;
-};
-
-const HandleAssignRider = async (req, res) => {
-    // try {
-    //     const { orderId } = req.params;
-
-    //     const rider = await Riders.findOne({
-    //         status: "Active",
-    //         verified: "Accepted"
-    //     });
-
-    //     const order = await Order.findById(orderId);
-    //     if (!order) {
-    //         return res.status(404).json({ message: "Order not found" });
-    //     }
-
-    //     if (!rider) {
-    //         order.status = "Pending";
-    //         await order.save();
-    //         return res.status(200).json({ message: "No available riders. Order is pending" });
-    //     }
-
-    //     order.riderId = rider._id;
-    //     order.status = "Assigned";
-    //     await order.save();
-
-    //     res.status(200).json({
-    //         message: "Order assigned to rider",
-    //         rider: {
-    //             id: rider._id,
-    //             username: rider.username,
-    //             phone: rider.phone,
-    //             email: rider.email,
-    //         },
-    //         orderId: order._id
-    //     });
-    // } catch (error) {
-    //     console.error(error);
-    //     res.status(500).json({ message: "Internal Server Error", error: error.message });
-    // }
-};
-
-const HandleRiderAccept = async (req, res) => {
-    // try {
-    //     const { orderId, riderId } = req.body;
-
-    //     const order = await Order.findById(orderId);
-    //     if (!order) return res.status(404).json({ message: "Order not found" });
-
-    //     if (!order.assignedRider || order.assignedRider.toString() !== riderId) {
-    //         return res.status(403).json({ message: "This rider is not assigned to the order" });
-    //     }
-
-    //     order.status = "Shipped";
-    //     await order.save();
-
-    //     res.status(200).json({ message: "Order accepted", order });
-    // } catch (error) {
-    //     console.error(error);
-    //     res.status(500).json({ message: "Internal Server Error" });
-    // }
-};
-
-const HandleRiderReject = async (req, res) => {
-    // try {
-    //     const { orderId, riderId } = req.body;
-
-    //     const order = await Order.findById(orderId);
-    //     if (!order) return res.status(404).json({ message: "Order not found" });
-
-    //     if (!order.assignedRider || order.assignedRider.toString() !== riderId) {
-    //         return res.status(403).json({ message: "This rider is not assigned to the order" });
-    //     }
-
-    //     order.rejectedRiders = order.rejectedRiders || [];
-    //     order.rejectedRiders.push(riderId);
-    //     order.assignedRider = null;
-    //     order.status = "Pending";
-    //     await order.save();
-
-    //     const nextRider = await assignOrderToRider(orderId);
-
-    //     if (!nextRider) {
-    //         return res.status(200).json({ message: "Order rejected. No available riders now.", order });
-    //     }
-
-    //     res.status(200).json({ message: "Order reassigned to next rider", order, nextRider });
-    // } catch (error) {
-    //     console.error(error);
-    //     res.status(500).json({ message: "Internal Server Error" });
-    // }
-};
-
-// const HandleGetRiderOrders = async (req, res) => {
-//     try {
-//         const { riderId } = req.params;
-
-//         if (!mongoose.Types.ObjectId.isValid(riderId)) {
-//             return res.status(400).json({ message: "Invalid Rider ID" });
-//         }
-
-//         const orders = await Order.find({
-//             assignedRider: riderId,
-//             status: { $in: ["Assigned", "Shipped"] },
-//         }).sort({ createdAt: -1 });
-
-//         if (orders.length === 0) {
-//             return res.status(200).json({ message: "No active orders for this rider." });
-//         }
-
-//         res.status(200).json({
-//             totalOrders: orders.length,
-//             orders,
-//         });
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({ message: "Internal Server Error" });
-//     }
-// };
 
 const HandleGetRiderOrders = async (req, res) => {
     try {
@@ -601,5 +455,5 @@ const HandleGetRiderOrders = async (req, res) => {
 
 
 export {
-    HandlePlaceOrder, HandleGetUserOrders, HandleGetUserOrdersStore, HandleGetSingleOrder, HandleUpdateOrderStatus, HandleAssignRider, HandleRiderAccept, HandleRiderReject, HandleGetRiderOrders, HandleGetAllsUserOrdersStore,
+    HandlePlaceOrder, HandleGetUserOrders, HandleGetUserOrdersStore, HandleGetSingleOrder, HandleUpdateOrderStatus, HandleGetRiderOrders, HandleGetAllsUserOrdersStore,
 };

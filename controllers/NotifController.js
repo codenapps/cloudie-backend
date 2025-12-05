@@ -7,7 +7,6 @@ import User from "../models/User.js";
 
 const HandlePostNotif = async (req, res) => {
     try {
-
         const { userID } = req.params;
         const { text } = req.body;
 
@@ -15,6 +14,7 @@ const HandlePostNotif = async (req, res) => {
             userID,
             text
         })
+
         await createNotif.save();
         res.status(201).json(createNotif)
 
@@ -53,13 +53,11 @@ const HandleReadNotif = async (req, res) => {
                 }
             ];
 
-            // Execute the bulkWrite operation
             const notif = await NotificationsModel.bulkWrite(bulkOps);
             return res.status(200).json({ message: "Notifications updated", updatedCount: notif.modifiedCount });
 
         }
 
-        // Find the user role based on the receiver
         const findRoles = await AdminModel.findOne({ username: reciever })
             || await User.findOne({ storeName: reciever })
             || await StoreOwnerModel.findOne({ storeName: reciever });
@@ -68,7 +66,6 @@ const HandleReadNotif = async (req, res) => {
             return res.status(404).json({ message: "No User Found" });
         }
 
-        // Determine the name based on the role
         let name;
         if (findRoles.role && findRoles.role.includes('StoreOwner')) {
             name = findRoles.storeName;
@@ -76,12 +73,8 @@ const HandleReadNotif = async (req, res) => {
             name = findRoles.username;
         }
 
-        // Construct a regex pattern to match the text
         const regexPattern = new RegExp(`${name}\\s+sent\\s+you\\s+a\\s+message`, 'i');
 
-        // Log the pattern and name to debug
-
-        // Update all matching notifications using bulkWrite
         const bulkOps = [
             {
                 updateMany: {
@@ -94,10 +87,8 @@ const HandleReadNotif = async (req, res) => {
             }
         ];
 
-        // Execute the bulkWrite operation
         const notif = await NotificationsModel.bulkWrite(bulkOps);
 
-        // Log the result and respond with the number of documents updated
         console.log('Update Result:', notif.modifiedCount);
         res.status(200).json({ message: "Notifications updated", updatedCount: notif.modifiedCount });
     } catch (error) {
@@ -105,8 +96,6 @@ const HandleReadNotif = async (req, res) => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-
-
 
 
 export {

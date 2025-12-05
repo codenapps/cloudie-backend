@@ -14,4 +14,5 @@ router.patch("/reset-password", HandleResetPassword)
 
 router.patch("/resend-otp", HandleResendOtp)
 
+
 export default router;

@@ -4,8 +4,12 @@ import { addCard, getUserCards, updateCard } from '../controllers/CardController
 
 const router = express.Router();
 
+
 router.post('/add', addCard);
+
 router.get('/:userId', getUserCards);
+
 router.patch('/update/:cardId', updateCard);
+
 
 export default router;

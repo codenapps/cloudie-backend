@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 const ChatModel = new Schema({
-
     senderID: {
         type: mongoose.Schema.Types.ObjectId,
     },
@@ -20,7 +19,6 @@ const ChatModel = new Schema({
         enum: ['sent', 'delivered', 'seen'],
         default: ['sent']
     },
-
 
 }, { timestamps: true });
 

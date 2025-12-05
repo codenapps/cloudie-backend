@@ -21,6 +21,7 @@ const ReviewSchema = new Schema({
     comment: {
         type: String,
     }
+    
 }, { timestamps: true });
 
 export default mongoose.model('review', ReviewSchema);

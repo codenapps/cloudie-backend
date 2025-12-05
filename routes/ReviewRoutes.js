@@ -3,12 +3,14 @@ import { createReview, getProductReviews, createRiderReview, getRiderReviews } f
 
 const router = express.Router();
 
-router.post('/products/:productId/reviews', createReview);
 
-router.get('/products/:productId/reviews', getProductReviews);
+router.post('/products/:productId/reviews', createReview);
 
 router.post('/rider/:userId/reviews', createRiderReview);
 
+router.get('/products/:productId/reviews', getProductReviews);
+
 router.get('/rider/:userId/reviews', getRiderReviews);
+
 
 export default router;

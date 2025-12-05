@@ -2,9 +2,8 @@ import Payment from '../models/PaymentModel.js';
 import stripe from "../utils/StripeConfig.js";
 
 const createPaymentIntent = async (req, res) => {
-    const { userId, amount, currency } = req.body;
-
     try {
+        const { userId, amount, currency } = req.body;
         const paymentIntent = await stripe.paymentIntents.create({
             amount: amount * 100,
             currency: currency || 'usd'
@@ -18,8 +17,6 @@ const createPaymentIntent = async (req, res) => {
             clientSecret: paymentIntent.client_secret
         });
 
-        console.log("-----------",payment);
-        
         await payment.save();
 
         res.status(201).json({ clientSecret: paymentIntent.client_secret });
@@ -29,56 +26,9 @@ const createPaymentIntent = async (req, res) => {
     }
 };
 
-// const createPaymentIntent = async (req, res) => {
-//     const { userId, currency } = req.body;
-
-//     try {
-//         // 1️⃣ Get user's cart
-//         const cart = await Cart.findOne({ userId }).populate("items.productId");
-//         if (!cart || cart.items.length === 0) {
-//             return res.status(400).json({ message: "Cart is empty" });
-//         }
-
-//         const totalAmount = cart.items.reduce((sum, item) => {
-//             const product = item.productId;
-//             const price = product.discountPrice || product.price;
-//             return sum + price * item.stock;
-//         }, 0);
-
-//         if (totalAmount <= 0) {
-//             return res.status(400).json({ message: "Invalid cart total" });
-//         }
-
-//         const paymentIntent = await stripe.paymentIntents.create({
-//             amount: Math.round(totalAmount * 100), // in cents
-//             currency: currency || "usd",
-//             payment_method_types: ["card"],
-//         });
-
-//         const payment = new Payment({
-//             userId,
-//             amount: totalAmount,
-//             currency: currency || "usd",
-//             clientSecret: paymentIntent.client_secret,
-//             paymentStatus: "Pending",
-//         });
-
-//         await payment.save();
-
-//         res.status(201).json({
-//             clientSecret: paymentIntent.client_secret,
-//             amount: totalAmount,
-//         });
-//     } catch (error) {
-//         console.error("Error creating payment intent:", error);
-//         res.status(500).json({ message: "Payment processing failed", error: error.message });
-//     }
-// };
-
 const getPaymentDetails = async (req, res) => {
-    const { userId } = req.params;
-
     try {
+        const { userId } = req.params;
         const payments = await Payment.find({ userId });
         res.json(payments);
     } catch (error) {
@@ -87,9 +37,8 @@ const getPaymentDetails = async (req, res) => {
 };
 
 const updatePaymentStatus = async (req, res) => {
-    const { paymentId, status } = req.body;
-
     try {
+        const { paymentId, status } = req.body;
         const updatedPayment = await Payment.findByIdAndUpdate(
             paymentId,
             { paymentStatus: status },

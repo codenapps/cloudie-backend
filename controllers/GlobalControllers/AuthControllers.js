@@ -10,7 +10,6 @@ import autoMailer from "../../utils/AutoMailer.js";
 // ENDPOINT: /api/global/login
 const HandleLogin = async (req, res) => {
     try {
-
         const { email, password } = req.body;
         const findRoles = await AdminModel.findOne({ email, password })
             || await User.findOne({ email, password })
@@ -166,6 +165,7 @@ const HandleVerifyOtp = async (req, res) => {
         } else {
             return res.status(404).json({ message: "OTP has expired or is invalid" });
         }
+
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal Server Error" })
@@ -177,17 +177,21 @@ const HandleVerifyOtp = async (req, res) => {
 const HandleResetPassword = async (req, res) => {
     try {
         const { email, password, confirmPassword } = req.body;
+
         const findUser = (
             await AdminModel.findOne({ email: email }) ||
             await User.findOne({ email: email }) ||
             await StoreOwnerModel.findOne({ email: email })
         );
+
         if (!findUser) {
             return res.status(404).json({ message: "Sorry, Some Error Occured While Resetting Password" })
         }
+
         if (password !== confirmPassword) {
             return res.status(404).json({ message: "Passwords Must Be Same" });
         }
+
         findUser.password = password || findUser.password
         await findUser.save();
         res.status(200).json({ message: "Password Reset Successfully" })
@@ -201,7 +205,6 @@ const HandleResetPassword = async (req, res) => {
 // ENDPOINT: /api/global/resend-otp
 const HandleResendOtp = async (req, res) => {
     try {
-
         const { email } = req.body;
 
         const userExists = (

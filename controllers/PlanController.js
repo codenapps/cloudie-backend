@@ -9,7 +9,6 @@ import stripe from "../utils/StripeConfig.js";
 
 // @POST
 // /api/plan/:adminID/create-plan
-
 const HandleCreatePlan = async (req, res) => {
     try {
         const { adminID } = req.params;
@@ -367,6 +366,7 @@ const HandleSubscriptionAction = async (req, res) => {
         res.status(500).json({ message: 'Internal Server Error' });
     }
 }
+
 
 export {
     HandleCreatePlan,

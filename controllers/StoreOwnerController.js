@@ -38,9 +38,6 @@ const HandleSignupStore = async (req, res) => {
             storeLongitude
         } = req.body;
 
-        // console.log(JSON.stringify(dob));
-        // console.log(JSON.parse(dob))
-
         const existingStore = await StoreOwnerModel.findOne({
             $or: [
                 { email },
@@ -55,7 +52,6 @@ const HandleSignupStore = async (req, res) => {
                 { email }
             ]
         })
-
 
         const findAdmin = await AdminModel.find();
         const adminID = findAdmin[0]._id;
@@ -108,7 +104,6 @@ const HandleSignupStore = async (req, res) => {
 
         const getOtpCode = otpCode;
         const getOtpExpire = Date.now() + 600000;
-
 
         const newStore = new StoreOwnerModel({
             storeName,
@@ -172,8 +167,6 @@ const HandleSignupStore = async (req, res) => {
 
             external_account: tokenID,
 
-
-
             capabilities: {
                 transfers: {
                     requested: true,
@@ -187,7 +180,6 @@ const HandleSignupStore = async (req, res) => {
             }
         });
 
-        // Accept TOS
         await stripe.accounts.update(account.id, {
             tos_acceptance: {
                 date: Math.floor(Date.now() / 1000),
@@ -195,7 +187,6 @@ const HandleSignupStore = async (req, res) => {
             }
         });
 
-        // Update capabilities
         await stripe.accounts.updateCapability(account.id, 'transfers', {
             requested: true,
         });
@@ -220,14 +211,12 @@ const HandleSignupStore = async (req, res) => {
             }
         );
 
-
         const toValidate = {
             storeName: newStore.storeName,
             email: newStore.email,
         }
 
         res.status(201).json({ message: 'Store created successfully', toValidate })
-
     } catch (error) {
         console.log(error);
         switch (error.type) {
@@ -283,14 +272,12 @@ const HandleVerifyStoreOtp = async (req, res) => {
                 verified: findUser.verified,
                 isOtpVerified: findUser.isOtpVerified
             }
-            return res.status(200).json({ message: "OTP Verified Successfully", token });
 
+            return res.status(200).json({ message: "OTP Verified Successfully", token });
         } else {
             return res.status(404).json({ message: "OTP has expired or is invalid" });
         }
     } catch (error) {
-        // console.log(error);
-
         res.status(500).json({ message: "Internal Server Error" })
     }
 }
@@ -299,9 +286,7 @@ const HandleVerifyStoreOtp = async (req, res) => {
 // /api/store/update-store/:storeID
 const HandleUpdateStore = async (req, res) => {
     try {
-
         const { storeID } = req.params;
-
         const {
             storeName,
             email,
@@ -322,7 +307,6 @@ const HandleUpdateStore = async (req, res) => {
         const logo = req?.files?.logo;
         const w9form = req?.files?.w9form;
 
-
         if (!findStore) {
             return res.status(404).json({ message: "Store Not Found" })
         }
@@ -335,7 +319,6 @@ const HandleUpdateStore = async (req, res) => {
             resource_type: 'image',
             folder: "stores-logo",
         }) : findStore.w9form;
-
 
         const findExistingStore = await StoreOwnerModel.findOne({
             _id: { $ne: findStore._id },
@@ -408,7 +391,6 @@ const HandleUpdateStore = async (req, res) => {
 // /api/store/get-store/:storeID
 const HandleGetStoreProfile = async (req, res) => {
     try {
-
         const { storeID } = req.params;
         const findStore = await StoreOwnerModel.findById(storeID).select("-password");
         const findSubscription = await SubscriptionModel.findOne({ storeID: findStore._id, status: ['Active'] }).populate({
@@ -440,19 +422,22 @@ const HandleGetStoreProfile = async (req, res) => {
 // /api/store/resubmit-verification/:storeID
 const HandleResubmitVerification = async (req, res) => {
     try {
-
         const { storeID } = req.params;
         const findStore = await StoreOwnerModel.findById(storeID);
+
         if (!findStore) {
             return res.status(404).json({ message: "Invalid Request" })
         }
+
         if (findStore.verified.includes("Accepted") || findStore.verified.includes("Pending")) {
             return res.status(400).json({ message: "Your verification is already being processed" })
         }
+
         const w9form = req?.files?.w9form;
         if (!w9form) {
             return res.status(400).json({ message: "Error While Uploading File" })
         }
+
         const w9formResult = w9form ? await cloudinary.uploader.upload(w9form.tempFilePath, {
             resource_type: 'image',
             folder: "stores-logo",
@@ -462,7 +447,6 @@ const HandleResubmitVerification = async (req, res) => {
         findStore.verified = ["Pending"]
 
         await findStore.save();
-
 
         const token = {
             _id: findStore._id.toString(),
@@ -483,32 +467,14 @@ const HandleResubmitVerification = async (req, res) => {
         }
 
         res.status(200).json({ message: "Verification Re-Submitted Successfully", token })
-
-
     } catch (error) {
         console.log(error);
     }
 }
 
-
 const HandleDeleteAccount = async (req, res) => {
     try {
-
         const { accID } = req.params;
-        // const findStore = await StoreOwnerModel.findById(storeID);
-        // if (!findStore) {
-        //     return res.status(404).json({ message: "Store Not Found" })
-        // }
-        // const deleteAccFromStripe = await stripe.accounts.del(findStore.accountID);
-        // if (deleteAccFromStripe.deleted !== true) {
-        //     return res.status(400).json({
-        //         message: "Error Occured While Deleting Account",
-        //     })
-        // }
-        // const findProducts = await ProductModel.deleteMany({ storeID: storeID });
-        // const findSubscriptions = await SubscriptionModel.deleteMany({
-        //     storeID: storeID
-        // });
 
         const deleteAccFromStripe = await stripe.accounts.del(accID);
         if (deleteAccFromStripe.deleted !== true) {
@@ -516,6 +482,7 @@ const HandleDeleteAccount = async (req, res) => {
                 message: "Error Occured While Deleting Account",
             })
         }
+
         res.status(200).json({ message: "Account Deleted Successfully" })
     } catch (error) {
         console.log(error);
@@ -525,99 +492,51 @@ const HandleDeleteAccount = async (req, res) => {
 
 const HandleGetStoreDashboard = async (req, res) => {
     try {
-
-        //     const { StoreId } = req.params;
-        //     const storeObjectId = new mongoose.Types.ObjectId(StoreId);
-        //     const findStores = await StoreOwnerModel.findById(storeObjectId);
-        //     if (!findStores) {
-        //         return res.status(404).json({ message: "Admin Not Found" });
-        //     }
-
-        //     const totalRiders = await RiderModel.countDocuments();
-        //     const listedCategories = await CategoryModel.countDocuments();
-        //     const totalProducts = await ProductModel.countDocuments();
-        //     const totalOrders = await OrderModel.countDocuments();
-        //     const planName = await SubscriptionModel.countDocuments()
-        //  const orderPrice = await OrderModel.find();
-        //     const price = orderPrice.map(item => item.totalAmount).reduce((accumulator, currentValue) => {
-        //         return accumulator + currentValue;
-        //     }, 0);
-        //     // const plans = planName.planName
-        //     return res.status(200).json({ totalOrders, totalProducts, listedCategories, planName, price, totalRiders })
-
-        //     // } else {
-        //     //     res.status(500).json({ message: "Internal Server Error" })
-        //     // }
-
-        // } catch (error) {
-        //     console.log(error);
-        //     res.status(500).json({ message: "Internal Server Error" })
-        // }
-
         const { id } = req.params;
-        // try {
-        const findStore = await StoreOwnerModel.findById(id) || await AdminModel.findById(id);
 
+        const findStore = await StoreOwnerModel.findById(id);
         if (!findStore) {
-            return res.status(404).json({ message: 'Store not found' });
+            return res.status(404).json({ message: "Store not found" });
         }
 
-        if (findStore.role.includes("StoreOwner")) {
-            const orders = await OrderModel.find({
-                isConfirmed: false, $or: [
-                    { 'items.storeID': id },
-                ],
-            })
+        const orders = await OrderModel.find({
+            "items.storeID": id
+        });
 
-            let totalRevenue = 0;
+        let totalRevenue = 0;
 
-            for (const order of orders) {
-                await Promise.all(order.checkout.map(async (item) => {
-                    const findStore = await StoreOwnerModel.findById(item.storeID);
-                    const product = await ProductModel.findOne({ _id: item.prodID, storeID: id });
-
-                    if (product && typeof product.price === 'number' && !isNaN(product.price) && typeof item.qty === 'number' && !isNaN(item.qty)) {
-                        totalRevenue += product.price * item.qty;
-                    } else {
-                        console.error("Invalid values in checkout", product ? product.price : 'No product', item.qty);
+        for (const order of orders) {
+            for (const item of order.items) {
+                if (item.storeID?.toString() === id.toString()) {
+                    if (typeof item.price === "number" && typeof item.quantity === "number") {
+                        totalRevenue += item.price * item.quantity;
                     }
-                }));
-
-                await Promise.all(order.quotation.map(async (item) => {
-                    const findStore = await StoreOwner.findById(item.storeID);
-                    const product = await ProductModel.findOne({ _id: item.prodID, storeID: id });
-                    console.log(product, "product");
-
-                    if (product && typeof item.totalAmount === 'number' && !isNaN(item.totalAmount)) {
-                        totalRevenue += item.totalAmount;
-                    } else {
-                        console.error("Invalid price in quotation", item.totalAmount);
-                    }
-                }));
+                }
             }
-
-            console.log(totalRevenue, "totl revence");
-
-
-            const product = await ProductModel.countDocuments({ storeID: id })
-            const subs = await SubscriptionModel.countDocuments({ storeID: id });
-
-            return res.status(200).json({ totalRevenue, product, totalOrders: orders.length, subscription: subs });
-        } else {
-            res.status(500).json({ message: 'Internal Server Error' });
         }
+
+        const product = await ProductModel.countDocuments({ storeID: id });
+
+        const subs = await SubscriptionModel.countDocuments({ storeID: id });
+
+        return res.status(200).json({
+            totalRevenue,
+            product,
+            totalOrders: orders.length,
+            subscription: subs,
+        });
 
     } catch (error) {
         console.log(error);
-        res.status(500).json({ message: 'Internal Server Error' });
+        return res.status(500).json({ message: "Internal Server Error", error });
     }
-}
+};
 
 const HandleGetChartData = async (req, res) => {
-    const { storeId } = req.params;
-    const { month, year } = req.query;
-
     try {
+        const { storeId } = req.params;
+        const { month, year } = req.query;
+
         const findStore = await StoreOwnerModel.findById(storeId);
         if (!findStore) {
             return res.status(404).json({ message: 'Store not found' });
@@ -698,7 +617,6 @@ const HandleGetChartData = async (req, res) => {
         }
 
         res.status(200).json(data);
-
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal Server Error' });

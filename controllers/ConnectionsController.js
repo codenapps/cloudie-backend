@@ -10,7 +10,6 @@ import User from "../models/User.js";
 // /api/connections/userOne/get-connection?chatFilter=Riders
 const HandleCreateConnection = async (req, res) => {
     try {
-
         const { userOne, userTwo } = req.params;
         const findUserOne = await User.findById(userOne) || await StoreOwnerModel.findById(userOne) || await AdminModel.findById(userOne) || await RiderModel.findById(userOne);
 
@@ -23,24 +22,6 @@ const HandleCreateConnection = async (req, res) => {
         if (!findUserTwo) {
             return res.status(404).json({ message: "User Not Found" })
         }
-
-        // const validateConnection = await ConnectionModel.findOne({ $or: [{ userOne: userOne, userTwo: userTwo }, { userOne: userTwo, userTwo: userOne }] })
-
-        // if (validateConnection) {
-        //     const validateConnection = await ConnectionModel.findOne({ $or: [{ userOne: userOne, userTwo: userTwo }, { userOne: userTwo, userTwo: userOne }] })
-        //     return res.status(200).json(validateConnection);
-        // } else {
-        //     if ((findUserOne.role.includes("Admin") && findUserTwo.role.includes("StoreOwner")) || (findUserOne.role.includes("StoreOwner") && findUserTwo.role.includes("Admin"))) {
-
-        //         const newConnection = new ConnectionModel({
-        //             userOne: userOne,
-        //             userTwo: userTwo,
-        //             status: ["Active"],
-        //         });
-        //         await newConnection.save();
-        //         return res.status(200).json(newConnection);
-        //     }
-        // }
 
         const existing = await ConnectionModel.findOne({
             $or: [
@@ -68,70 +49,6 @@ const HandleCreateConnection = async (req, res) => {
         res.status(500).json({ message: 'Internal Server Error' });
     }
 }
-
-// const HandleCreateConnection = async (req, res) => {
-//     try {
-//         const { userOne, userTwo } = req.params;
-
-//         const findUserOne =
-//             await User.findById(userOne) ||
-//             await StoreOwnerModel.findById(userOne) ||
-//             await AdminModel.findById(userOne) ||
-//             await RiderModel.findById(userOne);
-
-//         if (!findUserOne) {
-//             return res.status(404).json({ message: "User One Not Found" });
-//         }
-
-//         const findUserTwo =
-//             await User.findById(userTwo) ||
-//             await StoreOwnerModel.findById(userTwo) ||
-//             await AdminModel.findById(userTwo) ||
-//             await RiderModel.findById(userTwo);
-
-//         if (!findUserTwo) {
-//             return res.status(404).json({ message: "User Two Not Found" });
-//         }
-
-//         const existing = await ConnectionModel.findOne({
-//             $or: [
-//                 { userOne, userTwo },
-//                 { userOne: userTwo, userTwo: userOne }
-//             ]
-//         });
-
-//         if (existing) {
-//             return res.status(200).json(existing);
-//         }
-
-//         const canConnect =
-//             (findUserOne.role.includes("Admin") && findUserTwo.role.includes("StoreOwner")) ||
-//             (findUserOne.role.includes("StoreOwner") && findUserTwo.role.includes("Admin")) ||
-
-//             (findUserOne.role.includes("StoreOwner") && findUserTwo.role.includes("Rider")) ||
-//             (findUserOne.role.includes("Rider") && findUserTwo.role.includes("StoreOwner"));
-
-//         if (!canConnect) {
-//             return res.status(403).json({
-//                 message: "Connection not allowed between these roles"
-//             });
-//         }
-
-//         const newConnection = new ConnectionModel({
-//             userOne,
-//             userTwo,
-//             status: ["Active"],
-//         });
-
-//         await newConnection.save();
-//         return res.status(200).json(newConnection);
-
-//     } catch (error) {
-//         console.log(error);
-//         res.status(500).json({ message: 'Internal Server Error' });
-//     }
-// };
-
 
 // @GET
 // /api/connections/userOne/get-connection?chatFilter=Riders 
@@ -295,7 +212,6 @@ const HandleGetConnections = async (req, res) => {
 ///api/connections/:senderID/send-messages/:recieverID/:connectionID
 const HandleChat = async (req, res) => {
     try {
-
         const { senderID, recieverID, connectionID } = req.params;
         const { message } = req.body;
 
@@ -339,7 +255,6 @@ const HandleChat = async (req, res) => {
 // /api/connections/:connectionID/get-chats
 const handleGetChats = async (req, res) => {
     try {
-
         const { connectionID } = req.params;
 
         const validateConnection = await ConnectionModel.findById(connectionID);

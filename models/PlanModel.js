@@ -32,6 +32,7 @@ const PlanSchema = new Schema({
         enum: ["Monthly", "Yearly", "Quarterly", "Trial"],
         default: ["Monthly"]
     }
+
 }, { timestamps: true });
 
 export default mongoose.model("plans", PlanSchema);
