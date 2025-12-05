@@ -149,8 +149,16 @@ const HandlePlaceOrder = async (req, res) => {
             0
         );
 
-        const riderFare = totalAmount * 0.03;
-        totalAmount = totalAmount + riderFare;
+        const riderFare = totalAmount * 0.10;
+        const adminFee = totalAmount * 0.05;
+
+        totalAmount = totalAmount + riderFare + adminFee;
+
+        console.log(totalAmount, "totalAmount");
+
+        console.log("working", "working");
+
+
 
         const card = await Card.findOne({ userId, isDefault: true });
         if (!card) {

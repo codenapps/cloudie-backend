@@ -261,7 +261,7 @@ const HandleGetRiders = async (req, res) => {
         const limitNumber = parseInt(limit);
         const skip = (pageNumber - 1) * limitNumber;
 
-       let filter = {};
+        let filter = {};
         if (keyword) {
             filter = {
                 $or: [
@@ -429,6 +429,8 @@ const getSingleRiderDetails = async (req, res) => {
 
         const orders = await Order.find({ assignedRider: riderId })
             .populate("items.productId", "title price discountPrice")
+            .populate("items.storeID", "storeName addressLine")
+            .populate("userId", "username email phone addressLine")
             .sort({ createdAt: -1 });
 
         const deliveredCount = await Order.find({
