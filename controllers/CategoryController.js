@@ -116,26 +116,37 @@ const HandleUpdateCategory = async (req, res) => {
 // /api/category/get-all-categories
 const HandleGetCategories = async (req, res) => {
     try {
-        const { page = 1, limit = 10 } = req.query;
-        const totalCount = await CategoryModel.countDocuments().exec();
-        const findCategories = await CategoryModel.find()
-            .limit(limit * 1)
-            .skip((page - 1) * limit)
+        const { page = 1, limit = 10, keyword = "" } = req.query;
+
+        const filter = {};
+        if (keyword) {
+            filter.name = { $regex: keyword, $options: "i" };
+        }
+
+        const totalCount = await CategoryModel.countDocuments(filter).exec();
+
+        const findCategories = await CategoryModel.find(filter)
+            .limit(parseInt(limit))
+            .skip((parseInt(page) - 1) * parseInt(limit))
             .exec();
+
         const addKey = await Promise.all(findCategories.map(async (item) => {
-            const productCount = await ProductModel.countDocuments({ category: { $in: item._id } });
+            const productCount = await ProductModel.countDocuments({ category: { $in: [item._id] } });
             return {
                 ...item.toObject(),
                 numberOfProducts: productCount
             };
         }));
+
         const totalPages = Math.ceil(totalCount / limit);
+
         res.status(200).json({ categories: addKey, totalPages, currentPage: Number(page) });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
 
 // @DELETE 
 // /api/category/adminID/delete-category/catID
@@ -165,7 +176,6 @@ const HandleDeleteCategory = async (req, res) => {
             context: 'query'
         };
 
-        // Corrected update operation
         const replaceProductCat = await ProductModel.updateMany(
             { category: { $in: [findCategory._id] } },
             { $set: { category: findUncategorizedCat._id } },

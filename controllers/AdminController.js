@@ -177,14 +177,13 @@ const HandleVerfiyStore = async (req, res) => {
 const HandleGetAllStores = async (req, res) => {
     try {
         const { id } = req.params;
-        let { page = 1, limit = 5 } = req.query;
+        let { page = 1, limit = 5, keyword = "" } = req.query;
 
         page = Number(page);
         limit = Number(limit);
         const skip = (page - 1) * limit;
 
         const findUser = await AdminSchema.findById(id);
-
         if (!findUser) {
             return res.status(404).json({ message: "User Not Found" });
         }
@@ -197,18 +196,32 @@ const HandleGetAllStores = async (req, res) => {
             return res.status(401).json({ message: "Unauthorized Request" });
         }
 
-        const stores = await StoreOwnerModel.find()
+        const filter = keyword
+            ? {
+                  $or: [
+                      { storeName: { $regex: keyword, $options: "i" } },
+                      { email: { $regex: keyword, $options: "i" } },
+                      { phone: { $regex: keyword, $options: "i" } },
+                  ],
+              }
+            : {};
+
+        const stores = await StoreOwnerModel.find(filter)
             .skip(skip)
             .limit(limit);
 
-        const totalStores = await StoreOwnerModel.countDocuments();
+        const totalStores = await StoreOwnerModel.countDocuments(filter);
         const totalStorePages = Math.ceil(totalStores / limit);
 
-        const pendingStores = await StoreOwnerModel.find({ verified: "Pending" })
+        const pendingStores = await StoreOwnerModel.find({
+            ...filter,
+            verified: "Pending",
+        })
             .skip(skip)
             .limit(limit);
 
         const pendingCount = await StoreOwnerModel.countDocuments({
+            ...filter,
             verified: "Pending",
         });
         const pendingPages = Math.ceil(pendingCount / limit);
@@ -231,16 +244,13 @@ const HandleGetAllStores = async (req, res) => {
                 totalCount: pendingCount,
                 currentPage: page,
                 limit,
-            }
+            },
         });
-
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-
-
 
 
 const HandleGetAdminDashboard = async (req, res) => {
@@ -369,15 +379,43 @@ const HandleGetChartData = async (req, res) => {
 
 const HandleGetAllSubscriptions = async (req, res) => {
     try {
-        const { page = 1, limit = 10 } = req.query;
+        const { page = 1, limit = 10, keyword = "" } = req.query;
         const skip = (Number(page) - 1) * Number(limit);
 
-        let subscriptions = await SubscriptionModel.find()
-            .skip(skip)
-            .limit(Number(limit))
-            .populate("storeID", "storeName email phone")
-            .populate("planID", "title description price discountedPrice planName duration")
-            .exec();
+        let filter = {};
+        if (keyword) {
+            filter = {
+                $or: [
+                    { "store.storeName": { $regex: keyword, $options: "i" } },
+                    { "plan.title": { $regex: keyword, $options: "i" } },
+                ],
+            };
+        }
+
+        let subscriptions = await SubscriptionModel.aggregate([
+            {
+                $lookup: {
+                    from: "storeownermodels",
+                    localField: "storeID",
+                    foreignField: "_id",
+                    as: "store",
+                },
+            },
+            { $unwind: "$store" },
+            {
+                $lookup: {
+                    from: "plans",
+                    localField: "planID",
+                    foreignField: "_id",
+                    as: "plan",
+                },
+            },
+            { $unwind: "$plan" },
+            ...(keyword ? [{ $match: filter }] : []),
+            { $sort: { createdAt: -1 } },
+            { $skip: skip },
+            { $limit: Number(limit) },
+        ]);
 
         if (!subscriptions || subscriptions.length === 0) {
             return res.status(404).json({ message: "No subscriptions found" });
@@ -387,7 +425,7 @@ const HandleGetAllSubscriptions = async (req, res) => {
             const start = new Date(sub.createdAt);
             const end = new Date(start);
 
-            const duration = sub.duration[0];
+            const duration = Array.isArray(sub.duration) ? sub.duration[0] : sub.duration;
 
             switch (duration) {
                 case "Trial":
@@ -408,29 +446,50 @@ const HandleGetAllSubscriptions = async (req, res) => {
             const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
 
             return {
-                ...sub.toObject(),
+                ...sub,
                 startDate: start,
                 endDate: end,
-                remainingDays: diff >= 0 ? diff : 0
+                remainingDays: diff >= 0 ? diff : 0,
             };
         });
 
-        const totalSubscriptions = await SubscriptionModel.countDocuments();
+        let totalSubscriptions = await SubscriptionModel.aggregate([
+            {
+                $lookup: {
+                    from: "storeownermodels",
+                    localField: "storeID",
+                    foreignField: "_id",
+                    as: "store",
+                },
+            },
+            { $unwind: "$store" },
+            {
+                $lookup: {
+                    from: "plans",
+                    localField: "planID",
+                    foreignField: "_id",
+                    as: "plan",
+                },
+            },
+            { $unwind: "$plan" },
+            ...(keyword ? [{ $match: filter }] : []),
+            { $count: "total" },
+        ]);
+
+        const totalCount = totalSubscriptions[0]?.total || 0;
 
         res.status(200).json({
             message: "Subscriptions retrieved successfully",
             subscriptions,
             currentPage: Number(page),
-            totalPages: Math.ceil(totalSubscriptions / Number(limit)),
-            totalSubscriptions
+            totalPages: Math.ceil(totalCount / Number(limit)),
+            totalSubscriptions: totalCount,
         });
-
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-
 
 
 export { HandleGetAllUsers, HandleCreateAdmin, HandleUpdateAdmin, HandleGetAdmin, HandleVerfiyStore, HandleGetAllStores, HandleGetAdminDashboard, HandleGetChartData, HandleGetAllSubscriptions };

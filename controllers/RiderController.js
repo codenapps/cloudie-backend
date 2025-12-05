@@ -249,29 +249,47 @@ const RiderOtpVerify = async (req, res) => {
 // /api/riders/:id/get-riders
 const HandleGetRiders = async (req, res) => {
     try {
-
         const { id } = req.params;
-        const { page = 1, limit = 10 } = req.query;
+        const { page = 1, limit = 10, keyword = "" } = req.query;
 
         const findUser = await AdminModel.findById(id);
-        if (!findUser.role.includes("Admin")) {
-            return res.status(404).json({ message: "Unauthorized" });
+        if (!findUser || !findUser.role.includes("Admin")) {
+            return res.status(403).json({ message: "Unauthorized" });
         }
-        const totalPages = await RiderModel.countDocuments().exec();
-        const AllRiders = await RiderModel.find().limit(limit * 1)
-            .skip((page - 1) * limit)
-            .exec();
-        res.status(200).json({
-            AllRiders: AllRiders,
-            totalPages: Math.ceil(totalPages / limit),
-            currentPage: Number(page),
-        });
 
+        const pageNumber = parseInt(page);
+        const limitNumber = parseInt(limit);
+        const skip = (pageNumber - 1) * limitNumber;
+
+       let filter = {};
+        if (keyword) {
+            filter = {
+                $or: [
+                    { username: { $regex: keyword, $options: "i" } },
+                    { email: { $regex: keyword, $options: "i" } },
+                    { phone: { $regex: keyword, $options: i } }
+                ]
+            };
+        }
+
+        const totalRiders = await RiderModel.countDocuments(filter);
+
+        const allRiders = await RiderModel.find(filter)
+            .limit(limitNumber)
+            .skip(skip)
+            .exec();
+
+        res.status(200).json({
+            allRiders,
+            totalPages: Math.ceil(totalRiders / limitNumber),
+            currentPage: pageNumber,
+        });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-}
+};
+
 
 // @PATCH
 // /api/riders/:riderID/update-riders

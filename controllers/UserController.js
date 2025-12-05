@@ -241,7 +241,7 @@ const HandleGetSingleUser = async (req, res) => {
 
 const HandleGetAllUser = async (req, res) => {
     try {
-        let { page = 1, limit = 5 } = req.query;
+        let { page = 1, limit = 5, keyword = "" } = req.query;
 
         page = parseInt(page);
         limit = parseInt(limit);
@@ -249,19 +249,37 @@ const HandleGetAllUser = async (req, res) => {
         if (isNaN(page) || page < 1) page = 1;
         if (isNaN(limit) || limit < 1 || limit > 100) limit = 5;
 
+        const userFilter = keyword
+            ? {
+                $or: [
+                    { username: { $regex: keyword, $options: "i" } },
+                    { email: { $regex: keyword, $options: "i" } },
+                    { phone: { $regex: keyword, $options: "i" } },
+                ],
+            }
+            : {};
+
+        const riderFilter = keyword
+            ? {
+                $or: [
+                    { username: { $regex: keyword, $options: "i" } },
+                    { email: { $regex: keyword, $options: "i" } },
+                    { phone: { $regex: keyword, $options: "i" } },
+                ],
+            }
+            : {};
+
         const [users, riders] = await Promise.all([
-            User.find(),
-            RiderModel.find()
+            User.find(userFilter),
+            RiderModel.find(riderFilter),
         ]);
 
         let allData = [...users, ...riders];
-
         allData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         const total = allData.length;
         const startIndex = (page - 1) * limit;
         const endIndex = page * limit;
-
         const paginatedData = allData.slice(startIndex, endIndex);
 
         res.status(200).json({
@@ -270,16 +288,13 @@ const HandleGetAllUser = async (req, res) => {
             page,
             limit,
             totalPages: Math.ceil(total / limit),
-            users: paginatedData
+            users: paginatedData,
         });
-
     } catch (error) {
         console.error("Error fetching users:", error);
         res.status(500).json({ success: false, message: "Internal Server Error" });
     }
 };
-
-
 
 
 export { HandleGetAllUsers, HandleSignupUser, HandleVerifyUserOtp, HandleUpdateUser, HandleGetSingleUser, HandleGetAllUser };

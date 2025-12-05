@@ -270,7 +270,6 @@ const HandleGetUserOrders = async (req, res) => {
     }
 };
 
-
 const HandleGetUserOrdersStore = async (req, res) => {
     const { storeID } = req.params;
     const { page = 1, limit = 10 } = req.query;
@@ -298,28 +297,58 @@ const HandleGetUserOrdersStore = async (req, res) => {
 
 const HandleGetAllsUserOrdersStore = async (req, res) => {
     const { adminId } = req.params;
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, keyword = "" } = req.query;
 
     try {
         const pageNumber = parseInt(page);
         const limitNumber = parseInt(limit);
-
         const skip = (pageNumber - 1) * limitNumber;
 
-        const orders = await Order.find()
-            .skip(skip)
-            .limit(limitNumber)
-            .sort({ createdAt: -1 })
-            .populate("userId", "username email");;
-
-        const totalOrders = await Order.countDocuments();
-
-        if (!orders.length) {
-            return res.status(200).json({ message: "No orders found." });
+        let matchStage = {};
+        if (keyword) {
+            matchStage = {
+                $or: [
+                    { "user.username": { $regex: keyword, $options: "i" } },
+                    { "user.email": { $regex: keyword, $options: "i" } }
+                ]
+            };
         }
 
-        console.log(totalOrders.length);
+        const orders = await Order.aggregate([
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "user"
+                }
+            },
+            { $unwind: "$user" },
 
+            ...(keyword ? [{ $match: matchStage }] : []),
+
+            { $sort: { createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limitNumber }
+        ]);
+
+        const totalOrdersResult = await Order.aggregate([
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "user"
+                }
+            },
+            { $unwind: "$user" },
+
+            ...(keyword ? [{ $match: matchStage }] : []),
+
+            { $count: "total" }
+        ]);
+
+        const totalOrders = totalOrdersResult[0]?.total || 0;
 
         res.status(200).json({
             totalOrders,
@@ -328,12 +357,12 @@ const HandleGetAllsUserOrdersStore = async (req, res) => {
             pageSize: orders.length,
             orders,
         });
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Error retrieving store orders", error });
     }
 };
-
 
 const HandleGetSingleOrder = async (req, res) => {
     const { orderId } = req.params;
