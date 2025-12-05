@@ -144,10 +144,13 @@ const HandlePlaceOrder = async (req, res) => {
             };
         });
 
-        const totalAmount = orderItems.reduce(
+        let totalAmount = orderItems.reduce(
             (acc, item) => acc + item.price * item.quantity,
             0
         );
+
+        const riderFare = totalAmount * 0.03;
+        totalAmount = totalAmount + riderFare;
 
         const card = await Card.findOne({ userId, isDefault: true });
         if (!card) {
