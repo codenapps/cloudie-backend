@@ -253,7 +253,7 @@ const HandleGetRiders = async (req, res) => {
                 $or: [
                     { username: { $regex: keyword, $options: "i" } },
                     { email: { $regex: keyword, $options: "i" } },
-                    { phone: { $regex: keyword, $options: i } }
+                    // { phone: { $regex: keyword, $options: i } }
                 ]
             };
         }
