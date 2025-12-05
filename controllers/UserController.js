@@ -244,46 +244,29 @@ const HandleGetAllUser = async (req, res) => {
         if (isNaN(page) || page < 1) page = 1;
         if (isNaN(limit) || limit < 1 || limit > 100) limit = 5;
 
-        const userFilter = keyword
+        const filter = keyword
             ? {
                 $or: [
                     { username: { $regex: keyword, $options: "i" } },
                     { email: { $regex: keyword, $options: "i" } },
-                    // { phone: { $regex: keyword, $options: "i" } },
                 ],
             }
             : {};
 
-        const riderFilter = keyword
-            ? {
-                $or: [
-                    { username: { $regex: keyword, $options: "i" } },
-                    { email: { $regex: keyword, $options: "i" } },
-                    // { phone: { $regex: keyword, $options: "i" } },
-                ],
-            }
-            : {};
+        const totalUsers = await User.countDocuments(filter);
 
-        const [users, riders] = await Promise.all([
-            User.find(userFilter),
-            RiderModel.find(riderFilter),
-        ]);
-
-        let allData = [...users, ...riders];
-        allData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-        const total = allData.length;
-        const startIndex = (page - 1) * limit;
-        const endIndex = page * limit;
-        const paginatedData = allData.slice(startIndex, endIndex);
+        const users = await User.find(filter)
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
 
         res.status(200).json({
             success: true,
-            total,
+            total: totalUsers,
             page,
             limit,
-            totalPages: Math.ceil(total / limit),
-            users: paginatedData,
+            totalPages: Math.ceil(totalUsers / limit),
+            users,
         });
     } catch (error) {
         console.error("Error fetching users:", error);
@@ -294,6 +277,7 @@ const HandleGetAllUser = async (req, res) => {
         });
     }
 };
+
 
 
 export { HandleGetAllUsers, HandleSignupUser, HandleVerifyUserOtp, HandleUpdateUser, HandleGetSingleUser, HandleGetAllUser };
