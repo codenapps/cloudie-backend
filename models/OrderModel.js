@@ -83,7 +83,15 @@ const OrderSchema = new mongoose.Schema({
         enum: ["Paid", "Unpaid"],
         default: "Paid",
     },
-    
+    // riderFare: { 
+    //     type: Number,
+    //     default: 0
+    // },
+    // adminFare: {
+    //     type: Number,
+    //     default: 0
+    // },
+
 }, { timestamps: true });
 
 export default mongoose.model('Order', OrderSchema);

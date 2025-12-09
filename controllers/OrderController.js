@@ -6,16 +6,18 @@ import RiderModel from "../models/RiderModel.js";
 import Card from "../models/CardModel.js";
 import Stripe from 'stripe';
 import Riders from "../models/RiderModel.js";
+import Admin from "../models/AdminModel.js";
 const stripe = new Stripe("sk_test_51QePvkArP8SrFQvbyuj6Tve2Nw504Ef9beVL24eFCUjgprmGlfnjEQpJkEChOKMlSBeK4vzoed5OJ3oUsDZeYvzC00oVh0ZEe1");
 
 
 const HandlePlaceOrder = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const { latitude, longitude, message } = req.body;
         const { userId } = req.params;
 
-        const session = await mongoose.startSession();
-        session.startTransaction();
 
         const cart = await Cart.findOne({ userId })
             .populate("items.productId", "title price discountPrice stock storeID")
@@ -48,12 +50,6 @@ const HandlePlaceOrder = async (req, res) => {
 
         totalAmount = totalAmount + riderFare + adminFee;
 
-        console.log(totalAmount, "totalAmount");
-
-        console.log("working", "working");
-
-
-
         const card = await Card.findOne({ userId, isDefault: true });
         if (!card) {
             await session.abortTransaction();
@@ -83,6 +79,8 @@ const HandlePlaceOrder = async (req, res) => {
             message,
             items: orderItems,
             totalAmount,
+            riderFare,
+            adminFare: adminFee,
             paymentId: paymentIntent.id,
             paymentStatus: "Paid",
             status: "Pending",
@@ -95,16 +93,25 @@ const HandlePlaceOrder = async (req, res) => {
             verified: "Accepted",
         });
 
-        if (rider) {
-            newOrder.assignedRider = rider._id;
-            newOrder.riderUsername = rider.username;
-            newOrder.status = "Assigned";
+        if (!rider) {
+            await session.abortTransaction();
+            session.endSession();
 
-            newOrder.items = newOrder.items.map((item) => ({
-                ...item.toObject(),
-                riderID: rider._id,
-            }));
+            return res.status(200).json({
+                status: "Assigning",
+                orderCreated: false,
+                message: "No rider available right now.",
+            });
         }
+
+        newOrder.assignedRider = rider._id;
+        newOrder.riderUsername = rider.username;
+        newOrder.status = "Assigned";
+
+        newOrder.items = newOrder.items.map((item) => ({
+            ...item.toObject(),
+            riderID: rider._id,
+        }));
 
         await newOrder.save({ session });
 
@@ -119,6 +126,20 @@ const HandlePlaceOrder = async (req, res) => {
         await Cart.findOneAndUpdate(
             { userId },
             { $set: { items: [] } },
+            { session }
+        );
+
+        if (rider) {
+            await Riders.findByIdAndUpdate(
+                rider._id,
+                { $inc: { riderFare: riderFare } },
+                { session }
+            );
+        }
+
+        await Admin.findOneAndUpdate(
+            {},
+            { $inc: { adminFare: adminFee } },
             { session }
         );
 

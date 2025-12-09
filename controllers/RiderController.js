@@ -276,6 +276,19 @@ const HandleGetRiders = async (req, res) => {
     }
 };
 
+const HandleGetRidersForOrders = async (req, res) => {
+    try {
+        const allRiders = await RiderModel.find({ status: 'Active' }).exec();
+
+        res.status(200).json({
+            allRiders,
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
 // @PATCH
 // /api/riders/:riderID/update-riders
 const HandleUpdateRiders = async (req, res) => {
@@ -492,5 +505,6 @@ export {
     HandleUpdateRiders,
     getRidersWithAssignedOrders,
     getSingleRiderDetails,
-    getSingleRiderDeliveredOrders
+    getSingleRiderDeliveredOrders,
+    HandleGetRidersForOrders
 }

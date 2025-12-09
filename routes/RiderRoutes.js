@@ -1,8 +1,10 @@
 import express from "express";
-import { HandleGetRiders, HandleInviteRiders, HandleSubmitVerification, HandleUpdateRiders, RiderOtpVerify, 
+import {
+    HandleGetRiders, HandleInviteRiders, HandleSubmitVerification, HandleUpdateRiders, RiderOtpVerify,
     getRidersWithAssignedOrders,
     getSingleRiderDetails,
-    getSingleRiderDeliveredOrders
+    getSingleRiderDeliveredOrders,
+    HandleGetRidersForOrders
 } from "../controllers/RiderController.js";
 
 const router = express.Router();
@@ -11,6 +13,8 @@ const router = express.Router();
 router.post("/:adminID/create-riders", HandleInviteRiders)
 
 router.get("/:id/get-riders", HandleGetRiders);
+
+router.get("/get-riders", HandleGetRidersForOrders);
 
 router.get("/assigned-orders", getRidersWithAssignedOrders);
 

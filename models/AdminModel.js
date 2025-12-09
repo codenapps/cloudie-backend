@@ -23,6 +23,10 @@ const AdminSchema = new Schema({
         type: String,
         default: 'https://res.cloudinary.com/dhuhpslek/image/upload/fl_preserve_transparency/v1712595866/profile_demo_image_g57r6t.jpg?_s=public-apps'
     },
+    adminFare: {
+        type: Number,
+        default: 0
+    }
     
 }, { timestamps: true });
 

@@ -71,8 +71,12 @@ const RiderModel = new Schema({
     },
     riderLongitude: {
         type: Number
+    },
+    riderFare: {
+        type: Number,
+        default: 0
     }
-    
+
 }, { timestamps: true });
 
 export default mongoose.model("Riders", RiderModel);
