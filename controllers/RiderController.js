@@ -424,22 +424,28 @@ const getSingleRiderDetails = async (req, res) => {
             return res.status(404).json({ message: "Rider not found" });
         }
 
-        const orders = await Order.find({ assignedRider: riderId })
+        const assignedOrders = await Order.find({
+            assignedRider: riderId,
+            status: { $ne: "Delivered" }
+        })
             .populate("items.productId", "title price discountPrice")
             .populate("items.storeID", "storeName addressLine")
             .populate("userId", "username email phone addressLine")
             .sort({ createdAt: -1 });
 
-        const deliveredCount = await Order.find({
+        const deliveredOrders = await Order.find({
             assignedRider: riderId,
-            status: { $in: ["Delivered"] }
-        });
+            status: "Delivered"
+        }).populate("items.productId", "title price discountPrice")
+            .populate("items.storeID", "storeName addressLine")
+            .populate("userId", "username email phone addressLine")
+            .sort({ createdAt: -1 });
+        // .sort({ createdAt: -1 });
 
         return res.status(200).json({
             rider,
-            assignedOrders: orders,
-            deliveredOrders: deliveredCount,
-
+            assignedOrders,
+            deliveredOrders
         });
 
     } catch (error) {
@@ -449,6 +455,7 @@ const getSingleRiderDetails = async (req, res) => {
         });
     }
 };
+
 
 const getSingleRiderDeliveredOrders = async (req, res) => {
     try {

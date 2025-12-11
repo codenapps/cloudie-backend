@@ -395,8 +395,9 @@ const HandleGetSingleOrder = async (req, res) => {
     try {
         const { orderId } = req.params;
         const order = await Order.findById(orderId)
-            .populate("items.productId", "title price discountPrice productImage")
-            .populate("items.storeID", "storeLatitude storeLongitude storeName logo")
+            .populate("userId", "username email phone addressLine")
+            .populate("items.productId", "title price discountPrice productImage width height length netWeight")
+            .populate("items.storeID", "storeLatitude storeLongitude storeName logo addressLine")
             .populate("assignedRider", "riderLatitude riderLongitude username phone profile_image vehicleType"); // 🔥 Rider outside items
 
         if (!order) {
