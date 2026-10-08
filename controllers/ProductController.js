@@ -24,38 +24,76 @@ const HandleCreateProduct = async (req, res) => {
             length,
             width,
             height
-        } = req.body
+        } = req.body;
 
         let category = Array.isArray(req.body.category) ? req.body.category : [req.body.category];
-        console.log(category, "category");
 
-
-        const cleanedSlug = slug.toLowerCase()
+        // ✅ STEP 1: Clean slug
+        const cleanedSlug = slug
+            .toLowerCase()
             .replace(/\s+/g, '-')
             .replace(/[^\w-]+/g, '')
             .replace(/--+/g, '-')
             .replace(/^-+/, '')
             .replace(/-+$/, '');
 
+        // ✅ STEP 2: Validate store
         const findStore = await StoreOwnerModel.findById(storeID);
         if (!findStore) {
             return res.status(404).json({ message: "Store Not Found" });
         }
-
         if (findStore.status.includes("Inactive")) {
-            return res.status(403).json({ message: "Your Store Has Been Deactivated By Admin, Contact Admin To Enable Your Store" });
+            return res.status(403).json({
+                message: "Your Store Has Been Deactivated By Admin, Contact Admin To Enable Your Store"
+            });
         }
 
+        // ✅ STEP 3: Validate slug uniqueness BEFORE uploading
+        const findProduct = await ProductModel.findOne({ slug: cleanedSlug });
+        if (findProduct) {
+            return res.status(404).json({
+                message: "Product Already Exists, Title And Slug Should Be Unique"
+            });
+        }
+
+        // ✅ STEP 4: Validate default category BEFORE uploading
+        const findDefaultCategory = await CategoryModel.findOne({ name: "uncategorized" });
+        if (!findDefaultCategory) {
+            return res.status(404).json({
+                message: "Default Category Doesn't Exist. Please Select Any Category"
+            });
+        }
+
+        // ✅ STEP 5: Validate isVariable / variations BEFORE uploading
+        let parsedVariations = null;
+        const isVariableBool = isVariable === true || isVariable === 'true';
+        const isVariableFalse = isVariable === false || isVariable === 'false';
+
+        if (isVariableFalse) {
+            if (price === undefined || stock === undefined) {
+                return res.status(400).json({ message: "price and stock are required for non-variable products" });
+            }
+        } else if (isVariableBool) {
+            try {
+                parsedVariations = typeof variations === 'string' ? JSON.parse(variations) : variations;
+            } catch (e) {
+                return res.status(400).json({ message: "Invalid variations JSON" });
+            }
+        } else {
+            return res.status(400).json({ message: "Invalid value for isVariable" });
+        }
+
+        // ✅ STEP 6: NOW upload to Cloudinary (only after all validation passed)
         const productImage = req?.files?.productImage;
-        const uploadResult = productImage ? await cloudinary.uploader.upload(productImage.tempFilePath, {
-            resource_type: 'image',
-            folder: `${findStore.storeName} products`,
-        }) : '';
+        const uploadResult = productImage
+            ? await cloudinary.uploader.upload(productImage.tempFilePath, {
+                resource_type: 'image',
+                folder: `${findStore.storeName} products`,
+            })
+            : { secure_url: '' };
 
         const galleryImages = req?.files?.galleryImages;
         const imageUrls = [];
-
-        console.log(imageUrls, galleryImages, productImage, uploadResult)
 
         if (Array.isArray(galleryImages)) {
             for (const image of galleryImages) {
@@ -67,23 +105,7 @@ const HandleCreateProduct = async (req, res) => {
             imageUrls.push(galleryUploadResult.secure_url);
         }
 
-        const findProduct = await ProductModel.findOne({
-            $or: [
-                { slug: cleanedSlug }
-            ]
-        });
-
-        if (findProduct) {
-            return res.status(404).json({ message: "Product Already Exists, Title And Slug Should Be Unique" });
-        }
-
-        const findDefaultCategory = await CategoryModel.findOne({ name: "uncategorized" });
-
-
-        if (!findDefaultCategory) {
-            return res.status(404).json({ message: "Default Category Doesn't Exist. Please Select Any Category" });
-        }
-
+        // ✅ STEP 7: Create product
         const createProduct = new ProductModel({
             storeID,
             title,
@@ -94,21 +116,21 @@ const HandleCreateProduct = async (req, res) => {
                 ? [findDefaultCategory._id]
                 : category,
             productImage: uploadResult.secure_url || 'https://res.cloudinary.com/dhuhpslek/image/upload/fl_preserve_transparency/v1721946752/imageszzzz_sn7njl.jpg?_s=public-apps',
-            galleryImages: imageUrls.length > 0 ? imageUrls : ['https://res.cloudinary.com/dhuhpslek/image/upload/fl_preserve_transparency/v1721946752/imageszzzz_sn7njl.jpg?_s=public-apps'],
+            galleryImages: imageUrls.length > 0
+                ? imageUrls
+                : ['https://res.cloudinary.com/dhuhpslek/image/upload/fl_preserve_transparency/v1721946752/imageszzzz_sn7njl.jpg?_s=public-apps'],
             netWeight,
             length,
             width,
             height
         });
 
-        if (isVariable === false || isVariable === 'false') {
+        if (isVariableFalse) {
             createProduct.price = price;
             createProduct.discountPrice = discountPrice;
             createProduct.stock = stock;
-        } else if (isVariable === true || isVariable === 'true') {
-            createProduct.variations = typeof variations === 'string' ? JSON.parse(variations) : variations;
         } else {
-            return res.status(400).json({ message: "Invalid value for isVariable" });
+            createProduct.variations = parsedVariations;
         }
 
         await createProduct.save();
@@ -119,7 +141,7 @@ const HandleCreateProduct = async (req, res) => {
         console.log(error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-}
+};
 
 // @PATCH
 // /api/products/:storeID/update-product/:productID
@@ -143,22 +165,24 @@ const HandleUpdateProduct = async (req, res) => {
 
         let category = Array.isArray(req.body.category) ? req.body.category : [req.body.category];
 
-        console.log("categorgdhfghy", category);
-
-        const cleanedSlug = slug.toLowerCase()
+        // ✅ STEP 1: Clean slug
+        const cleanedSlug = slug
+            .toLowerCase()
             .replace(/\s+/g, '-')
             .replace(/[^\w-]+/g, '')
             .replace(/--+/g, '-')
             .replace(/^-+/, '')
             .replace(/-+$/, '');
 
+        // ✅ STEP 2: Validate store + product first
         const findStore = await StoreOwnerModel.findById(storeID);
         if (!findStore) {
             return res.status(404).json({ message: "Store Not Found" });
         }
-
         if (findStore.status.includes("Inactive")) {
-            return res.status(403).json({ message: "Your Store Has Been Deactivated By Admin, Contact Admin To Enable Your Store" });
+            return res.status(403).json({
+                message: "Your Store Has Been Deactivated By Admin, Contact Admin To Enable Your Store"
+            });
         }
 
         const product = await ProductModel.findById(productID);
@@ -166,12 +190,45 @@ const HandleUpdateProduct = async (req, res) => {
             return res.status(404).json({ message: "Product Not Found" });
         }
 
-        const productImage = req?.files?.productImage;
+        // ✅ STEP 3: Validate slug uniqueness BEFORE uploading
+        const findProduct = await ProductModel.findOne({
+            slug: cleanedSlug,
+            _id: { $ne: productID }
+        });
+        if (findProduct) {
+            return res.status(404).json({
+                message: "Another product with the same title or slug already exists"
+            });
+        }
 
-        const uploadResult = productImage ? await cloudinary.uploader.upload(productImage.tempFilePath, {
-            resource_type: 'image',
-            folder: `${findStore.storeName} products`,
-        }) : product.productImage;
+        // ✅ STEP 4: Validate category + isVariable BEFORE uploading
+        const findDefaultCategory = await CategoryModel.findOne({ name: "uncategorized" });
+        if (!findDefaultCategory) {
+            return res.status(404).json({
+                message: "Default Category Doesn't Exist. Please Select Any Category"
+            });
+        }
+
+        let parsedVariations = product.variations;
+        const isVariableBool = isVariable === true || isVariable === 'true';
+        const isVariableFalse = isVariable === false || isVariable === 'false';
+
+        if (isVariableBool) {
+            try {
+                parsedVariations = typeof variations === 'string' ? JSON.parse(variations) : variations;
+            } catch (e) {
+                return res.status(400).json({ message: "Invalid variations JSON" });
+            }
+        }
+
+        // ✅ STEP 5: NOW upload to Cloudinary
+        const productImage = req?.files?.productImage;
+        const uploadResult = productImage
+            ? await cloudinary.uploader.upload(productImage.tempFilePath, {
+                resource_type: 'image',
+                folder: `${findStore.storeName} products`,
+            })
+            : null; // null means "keep existing"
 
         const galleryImages = req?.files?.galleryImages;
         const imageUrls = [];
@@ -186,365 +243,37 @@ const HandleUpdateProduct = async (req, res) => {
             imageUrls.push(galleryUploadResult.secure_url);
         }
 
-        const findProduct = await ProductModel.findOne({
-            $or: [
-                { slug: cleanedSlug }
-            ],
-            _id: { $ne: productID }
-        });
-
-        if (findProduct) {
-            return res.status(404).json({ message: "Another product with the same title or slug already exists" });
-        }
-
-        const findDefaultCategory = await CategoryModel.findOne({ name: "uncategorized" });
-
-        if (!findDefaultCategory) {
-            return res.status(404).json({ message: "Default Category Doesn't Exist. Please Select Any Category" });
-        }
+        // ✅ STEP 6: Apply updates
         product.title = title || product.title;
         product.desc = desc || product.desc;
         product.slug = cleanedSlug || product.slug;
-        product.isVariable = isVariable || product.isVariable;
+        product.isVariable = isVariable ?? product.isVariable;
         product.category = category;
-        product.productImage = uploadResult.secure_url || product.productImage;
+        product.productImage = uploadResult?.secure_url || product.productImage;
         product.galleryImages = imageUrls.length === 0 ? product.galleryImages : imageUrls;
         product.netWeight = netWeight || product.netWeight;
         product.length = length || product.length;
         product.width = width || product.width;
         product.height = height || product.height;
 
-        if (isVariable === false || isVariable === 'false') {
+        if (isVariableFalse) {
             product.price = price || product.price;
             product.discountPrice = discountPrice || product.discountPrice;
             product.stock = stock || product.stock;
-        } else if (isVariable === true || isVariable === 'true') {
-            product.variations = typeof variations === 'string' ? JSON.parse(variations) : variations;
+        } else if (isVariableBool) {
+            product.variations = parsedVariations;
         } else {
             return res.status(400).json({ message: "Invalid value for isVariable" });
         }
 
         await product.save();
         return res.status(200).json({ message: "Product Updated Successfully" });
+
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-}
-
-// @GET
-// /api/products/get-products?id={cookieID}&category={categoryId}&keyword={search}&limit={limit}&count={count}
-// const HandleGetProducts = async (req, res) => {
-//     try {
-//         const { category, keyword, id } = req.query;
-//         const { page = 1, limit = 10 } = req.query;
-
-//         const findUser = await User.findById(id) || await StoreOwnerModel.findById(id) || await AdminModel.findById(id);
-
-//         const findStores = await StoreOwnerModel.find({ status: ['Active'] })
-
-//         const extractStoreIDs = findStores.map((store) => store._id.toString())
-
-//         if (page <= 0 || limit <= 0) {
-//             return res.status(400).json({ message: "Invalid page or limit" });
-//         }
-
-//         let products;
-
-//         if (findUser) {
-//             if (findUser.role.includes("StoreOwner")) {
-//                 if (category && keyword) {
-//                     products = await ProductModel.find({ storeID: id, category: { $in: category }, title: { $regex: keyword, $options: 'i' } }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 } else if (!category && keyword) {
-//                     products = await ProductModel.find({ storeID: id, title: { $regex: keyword, $options: 'i' } }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 } else if (category && !keyword) {
-//                     products = await ProductModel.find({ storeID: id, category: { $in: category } }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 } else {
-//                     products = await ProductModel.find({ storeID: id }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 }
-//                 const totalPages = await ProductModel.countDocuments({ storeID: id }).exec();
-//                 return res.status(200).json({
-//                     products: products,
-//                     totalPages: Math.ceil(totalPages / limit),
-//                     currentPage: Number(page),
-//                 })
-
-//             } else if (findUser.role.includes("Admin")) {
-
-//                 if (category && keyword) {
-//                     products = await ProductModel.find({ category: { $in: category }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 } else if (!category && keyword) {
-//                     products = await ProductModel.find({ title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 } else if (category && !keyword) {
-//                     products = await ProductModel.find({ category: { $in: category }, status: ['Active'] }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 } else {
-//                     products = await ProductModel.find({ status: ['Active'] }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 }
-//                 const totalPages = await ProductModel.countDocuments({ status: ['Active'] }).exec(); return res.status(200).json({
-//                     products: products,
-//                     totalPages: Math.ceil(totalPages / limit),
-//                     currentPage: Number(page),
-//                 })
-
-//             } else if (findUser.role.includes("User")) {
-//                 const findStores = await StoreOwnerModel.find({ status: ['Active'] })
-//                 const extractStoreIDs = findStores.map((store) => store._id.toString())
-
-//                 if (category && keyword) {
-//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 } else if (!category && keyword) {
-//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 } else if (category && !keyword) {
-//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, status: ['Active'] }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 } else {
-//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 }
-//                 const totalPages = await ProductModel.countDocuments({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).exec();
-//                 return res.status(200).json({
-//                     products: products,
-//                     totalPages: Math.ceil(totalPages / limit),
-//                     currentPage: Number(page),
-//                 })
-//             } else {
-//                 if (category && keyword) {
-//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 } else if (!category && keyword) {
-//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 } else if (category && !keyword) {
-//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, status: ['Active'] }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 } else {
-//                     products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).populate({
-//                         path: 'category',
-//                         model: "categories",
-//                         select: ""
-//                     }).populate({
-//                         path: 'storeID',
-//                         model: 'StoreOwner',
-//                         select: '-password'
-//                     }).limit(limit * 1)
-//                         .skip((page - 1) * limit)
-//                         .exec();
-//                 }
-//                 const totalPages = await ProductModel.countDocuments({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).exec();
-//                 return res.status(200).json({
-//                     products: products,
-//                     totalPages: Math.ceil(totalPages / limit),
-//                     currentPage: Number(page),
-//                 })
-
-//             }
-//         } else {
-//             if (category && keyword) {
-//                 products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-//                     path: 'category',
-//                     model: "categories",
-//                     select: ""
-//                 }).populate({
-//                     path: 'storeID',
-//                     model: 'StoreOwner',
-//                     select: '-password'
-//                 }).limit(limit * 1)
-//                     .skip((page - 1) * limit)
-//                     .exec();
-//             } else if (!category && keyword) {
-//                 products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, title: { $regex: keyword, $options: 'i' }, status: ['Active'] }).populate({
-//                     path: 'category',
-//                     model: "categories",
-//                     select: ""
-//                 }).populate({
-//                     path: 'storeID',
-//                     model: 'StoreOwner',
-//                     select: '-password'
-//                 }).limit(limit * 1)
-//                     .skip((page - 1) * limit)
-//                     .exec();
-//             } else if (category && !keyword) {
-//                 products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, category: { $in: category }, status: ['Active'] }).populate({
-//                     path: 'category',
-//                     model: "categories",
-//                     select: ""
-//                 }).populate({
-//                     path: 'storeID',
-//                     model: 'StoreOwner',
-//                     select: '-password'
-//                 }).limit(limit * 1)
-//                     .skip((page - 1) * limit)
-//                     .exec();
-//             } else {
-//                 products = await ProductModel.find({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).populate({
-//                     path: 'category',
-//                     model: "categories",
-//                     select: ""
-//                 }).populate({
-//                     path: 'storeID',
-//                     model: 'StoreOwner',
-//                     select: '-password'
-//                 }).limit(limit * 1)
-//                     .skip((page - 1) * limit)
-//                     .exec();
-//             }
-//             const totalPages = await ProductModel.countDocuments({ storeID: { $in: extractStoreIDs }, status: ['Active'] }).exec();
-//             return res.status(200).json({
-//                 products: products,
-//                 totalPages: Math.ceil(totalPages / limit),
-//                 currentPage: Number(page),
-//             })
-//         }
-//     } catch (error) {
-//         console.log(error);
-//         res.status(500).json({ message: "Internal Server Error" });
-//     }
-// }
+};
 
 const HandleGetProducts = async (req, res) => {
     try {

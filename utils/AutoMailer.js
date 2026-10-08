@@ -1,9 +1,9 @@
 import transporter from "./NodeMailerConfig.js";
 
-const autoMailer = ({ from = 'team@codenapps.com', to, subject, message }) => {
+const autoMailer = ({ to, subject, message }) => {
     try {
         const mailOptions = {
-            from: from,
+            from: process.env.NODE_MAILER_USER,
             to: to,
             subject: subject,
             html: message,

@@ -59,13 +59,13 @@ const UserSchema = new Schema({
     },
     userLatitude: {
         type: Number,
-        required: true
+        required: false
     },
     userLongitude: {
         type: Number,
-        required: true
+        required: false
     },
-    
+
 }, { timestamps: true });
 
 export default mongoose.model("user", UserSchema);

@@ -39,40 +39,111 @@ const HandleSignupStore = async (req, res) => {
         } = req.body;
 
         const existingStore = await StoreOwnerModel.findOne({
-            $or: [
-                { email },
-                { storeName }
-            ]
-        }) || await AdminModel.findOne({
-            $or: [
-                { email }
-            ]
-        }) || await User.findOne({
-            $or: [
-                { email }
-            ]
-        })
+            $or: [{ email }, { storeName }]
+        }) || await AdminModel.findOne({ email }) || await User.findOne({ email });
+
+        if (existingStore && existingStore.email === email) {
+            return res.status(400).json({ message: 'Email already exists' });
+        }
+
+        if (existingStore && existingStore.storeName === storeName) {
+            return res.status(400).json({ message: 'Store name already exists' });
+        }
 
         const findAdmin = await AdminModel.find();
-        const adminID = findAdmin[0]._id;
+        if (!findAdmin.length) {
+            return res.status(500).json({ message: 'Admin not configured' });
+        }
 
         const logo = req?.files?.logo;
         const w9form = req?.files?.w9form;
+        const identity_back = req?.files?.identity_back;
+        const identity_front = req?.files?.identity_front;
 
-        const identity_back = req.files.identity_back;
-        const identity_front = req.files.identity_front;
+        if (!identity_back || !identity_front) {
+            return res.status(400).json({ message: 'Identity documents are required' });
+        }
+        if (!tokenID) {
+            return res.status(400).json({ message: 'Bank token is required' });
+        }
+
+        const formattedDob = dob.split("-");
+
+        let account;
+        try {
+            account = await stripe.accounts.create({
+                country: 'US',
+                type: 'custom',
+                email: email.toLowerCase(),
+                business_type: 'individual',
+                business_profile: {
+                    url: 'https://cloudie.com'
+                },
+                individual: {
+                    first_name: storeName,
+                    last_name: " ",
+                    email: email.toLowerCase(),
+                    phone,
+                    dob: {
+                        day: Number(formattedDob[2]),
+                        month: Number(formattedDob[1]),
+                        year: Number(formattedDob[0]),
+                    },
+                    address: {
+                        line1: addressLine,
+                        city,
+                        state,
+                        country,
+                        postal_code: postalCode
+                    },
+                    ssn_last_4,
+                },
+                capabilities: {
+                    transfers: { requested: true },
+                },
+                settings: {
+                    payouts: { debit_negative_balances: true }
+                }
+            });
+
+            await stripe.accounts.update(account.id, {
+                tos_acceptance: {
+                    date: Math.floor(Date.now() / 1000),
+                    ip: req.ip || '8.8.8.8',
+                }
+            });
+
+            const externalAccount = await stripe.accounts.createExternalAccount(
+                account.id,
+                { external_account: tokenID }
+            );
+
+            account._externalAccountId = externalAccount.id;
+
+        } catch (stripeErr) {
+            console.log("Stripe account creation failed:", stripeErr.message);
+            if (stripeErr.type === 'StripeInvalidRequestError') {
+                return res.status(400).json({ message: stripeErr.raw.message });
+            }
+            return res.status(500).json({ message: 'Stripe account creation failed' });
+        }
 
         const backFileData = fs.readFileSync(identity_back.tempFilePath);
         const frontFileData = fs.readFileSync(identity_front.tempFilePath);
 
-        const uploadResult = logo ? await cloudinary.uploader.upload(logo.tempFilePath, {
-            resource_type: 'image',
-            folder: "stores-logo",
-        }) : '';
-        const w9formResult = w9form ? await cloudinary.uploader.upload(w9form.tempFilePath, {
-            resource_type: 'image',
-            folder: "stores-logo",
-        }) : '';
+        const uploadResult = logo
+            ? await cloudinary.uploader.upload(logo.tempFilePath, {
+                resource_type: 'image',
+                folder: "stores-logo",
+            })
+            : { secure_url: '' };
+
+        const w9formResult = w9form
+            ? await cloudinary.uploader.upload(w9form.tempFilePath, {
+                resource_type: 'image',
+                folder: "stores-logo",
+            })
+            : { secure_url: '' };
 
         const back = await stripe.files.create({
             purpose: 'identity_document',
@@ -92,18 +163,18 @@ const HandleSignupStore = async (req, res) => {
             },
         });
 
-        if (existingStore && existingStore.email === email) {
-            return res.status(400).json({ message: 'Email already exists' });
-        }
-
-        if (existingStore && existingStore.storeName === storeName) {
-            return res.status(400).json({ message: 'Store name already exists' });
-        }
+        await stripe.accounts.update(account.id, {
+            individual: {
+                verification: {
+                    document: {
+                        back: back.id,
+                        front: front.id,
+                    }
+                }
+            }
+        });
 
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-        const getOtpCode = otpCode;
-        const getOtpExpire = Date.now() + 600000;
 
         const newStore = new StoreOwnerModel({
             storeName,
@@ -118,105 +189,36 @@ const HandleSignupStore = async (req, res) => {
             phone,
             w9form: w9formResult.secure_url || "",
             logo: uploadResult.secure_url || "",
-            OtpCode: getOtpCode,
-            OtpExp: getOtpExpire,
+            OtpCode: otpCode,
+            OtpExp: Date.now() + 600000,
             dob,
             identity_back: back.id,
             identity_front: front.id,
             ssn_last_4,
             categories,
             storeLatitude,
-            storeLongitude
-        })
-
-        const fomrattedDob = dob.split("-");
-
-        const account = await stripe.accounts.create({
-            country: 'US',
-            type: 'custom',
-            email: newStore.email,
-            business_type: 'individual',
-            business_profile: {
-                url: newStore.logo
-            },
-            individual: {
-                first_name: newStore.storeName,
-                last_name: " ",
-                email: newStore.email,
-                phone: newStore.phone,
-                dob: {
-                    day: Number(fomrattedDob[2]),
-                    month: Number(fomrattedDob[1]),
-                    year: Number(fomrattedDob[0]),
-                },
-                address: {
-                    line1: newStore.addressLine,
-                    city: newStore.city,
-                    state: newStore.state,
-                    country: newStore.country,
-                    postal_code: newStore.postalCode
-                },
-                ssn_last_4: newStore.ssn_last_4,
-                verification: {
-                    document: {
-                        back: back.id,
-                        front: front.id,
-                    }
-                }
-            },
-
-            external_account: tokenID,
-
-            capabilities: {
-                transfers: {
-                    requested: true,
-                },
-            },
-
-            settings: {
-                payouts: {
-                    debit_negative_balances: true,
-                }
-            }
-        });
-
-        await stripe.accounts.update(account.id, {
-            tos_acceptance: {
-                date: Math.floor(Date.now() / 1000),
-                ip: '8.8.8.8',
-            }
-        });
-
-        await stripe.accounts.updateCapability(account.id, 'transfers', {
-            requested: true,
+            storeLongitude,
+            cardID: account._externalAccountId,
+            accountID: account.id,
         });
 
         await newStore.save();
 
-        await StoreOwnerModel.findByIdAndUpdate(newStore._id, {
-            cardID: account.external_accounts.data[0].id,
-        })
+        autoMailer({
+            to: newStore.email,
+            subject: 'OTP VERIFICATION CODE',
+            message: `<h3>Your OTP Verification Code Is: </h3>
+            <h3>${newStore.OtpCode}</h3>`
+        });
 
-        await StoreOwnerModel.findByIdAndUpdate(newStore._id, {
-            accountID: account.id
-        })
-
-        autoMailer(
-            {
-                from: 'team@codenapps.com',
-                to: newStore.email,
-                subject: 'OTP VERIFICATION CODE',
-                message: `<h3>Your OTP Verification Code Is: </h3>
-                <h3> ${newStore.OtpCode}</h4>`
+        res.status(201).json({
+            message: 'Store created successfully',
+            toValidate: {
+                storeName: newStore.storeName,
+                email: newStore.email,
             }
-        );
+        });
 
-        const toValidate = {
-            storeName: newStore.storeName,
-            email: newStore.email,
-        }
-
-        res.status(201).json({ message: 'Store created successfully', toValidate })
     } catch (error) {
         console.log(error);
         switch (error.type) {
@@ -228,7 +230,7 @@ const HandleSignupStore = async (req, res) => {
                 return res.status(500).json({ message: 'Internal Server Error' });
         }
     }
-}
+};
 
 // @PATCH
 // /api/store/store-otp

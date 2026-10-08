@@ -59,7 +59,6 @@ const HandleInviteRiders = async (req, res) => {
                 await createRider.save();
 
                 await autoMailer({
-                    from: findAdmin.email,
                     to: result.email,
                     subject: `Congrats!!! You've Been Invited To Cloudie To Work As A Partner!`,
                     message: `
@@ -141,7 +140,6 @@ const HandleSubmitVerification = async (req, res) => {
 
         autoMailer(
             {
-                from: 'team@codenapps.com',
                 to: findRider.email,
                 subject: 'OTP VERIFICATION CODE',
                 message: `<h3>Your OTP Verification Code Is: </h3>

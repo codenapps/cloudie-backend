@@ -1,6 +1,14 @@
+import "dotenv/config";
 import Stripe from 'stripe'
-// const stripe = new Stripe(`sk_test_51QHvOqP6sOOK51mdTKbXaNkzdjHmKDoweGdjHuopXlxGj4Ocuphgh826TmM8PFqSlJNoL4f3ZgE21vGKQTBpBkp200htp8ZPOx`)
-const stripe = new Stripe(`sk_test_51QePvkArP8SrFQvbyuj6Tve2Nw504Ef9beVL24eFCUjgprmGlfnjEQpJkEChOKMlSBeK4vzoed5OJ3oUsDZeYvzC00oVh0ZEe1`)
 
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+if (!stripeKey) {
+    throw new Error("STRIPE_SECRET_KEY is not defined in the environment variables.");
+}
+
+const stripe = new Stripe(stripeKey, {
+    apiVersion: '2022-11-15',
+    typescript: true,
+});
 
 export default stripe
