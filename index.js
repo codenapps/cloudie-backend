@@ -1,7 +1,7 @@
+import "dotenv/config";
 import express from "express";
 import User from "./routes/User.js";
 import cors from "cors";
-import dotenv from "dotenv";
 import { v2 as cloudinary } from "cloudinary";
 import fileUpload from "express-fileupload";
 import ErrorHandler from "./utils/ErrorHandler.js";
@@ -29,7 +29,6 @@ import { createServer } from "http";
 import { ChatSocket } from "./sockets/Chat.js";
 
 const app = express();
-dotenv.config();
 app.use(express.json());
 app.use(cookieParser());
 connectMongoDB();

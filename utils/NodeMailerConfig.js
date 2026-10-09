@@ -1,15 +1,14 @@
-import nodemailer from 'nodemailer'
+import "dotenv/config";
+import nodemailer from "nodemailer";
 
-let transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // use SSL if required
-    auth: {
-        user: process.env.NODE_MAILER_USER,
-        pass: process.env.NODE_MAILER_PASS
-    },
-    tls: { rejectUnauthorized: false }
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.NODE_MAILER_USER,
+    pass: process.env.NODE_MAILER_PASS?.replace(/\s/g, ""),
+  },
 });
-
 
 export default transporter;
