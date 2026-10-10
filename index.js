@@ -95,6 +95,7 @@ const io = new Server(httpServer, {
     }
 });
 
+ChatSocket(io);
 
 app.get('/', (req, res) => {
     res.send("Hello World");
@@ -105,5 +106,3 @@ const port = process.env.PORT || 5000;
 httpServer.listen(port, () => {
     console.log(`APP Listening To ${port}`);
 });
-
-ChatSocket(io);
