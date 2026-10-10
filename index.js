@@ -31,9 +31,8 @@ import { ChatSocket } from "./sockets/Chat.js";
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
-connectMongoDB();
-
-PlanExpirationHelper();
+await connectMongoDB();
+PlanExpirationHelper().catch((err) => console.error("PlanExpirationHelper:", err));
 
 const httpServer = createServer(app);
 

@@ -36,7 +36,7 @@ const PlanExpirationHelper = async () => {
             }
         }
     } catch (error) {
-        throw error;
+        console.error("PlanExpirationHelper:", error.message);
     }
 };
 
