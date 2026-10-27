@@ -1,25 +1,14 @@
 import transporter from "./NodeMailerConfig.js";
 
-const autoMailer = ({ to, subject, message }) => {
-    try {
-        const mailOptions = {
-            from: process.env.NODE_MAILER_USER,
-            to: to,
-            subject: subject,
-            html: message,
-        };
+const autoMailer = async ({ to, subject, message }) => {
+  const mailOptions = {
+    from: process.env.NODE_MAILER_USER,
+    to,
+    subject,
+    html: message,
+  };
 
-        transporter.sendMail(mailOptions, (err, info) => {
-            if (err) {
-                console.log(err);
-            } else {
-                console.log("Email sent: " + info.response);
-            }
-        });
-    } catch (error) {
-        console.log(error);
-        console.log("Automailer Error Occurred");
-    }
+  return transporter.sendMail(mailOptions);
 };
 
 export default autoMailer;

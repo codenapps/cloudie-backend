@@ -102,37 +102,38 @@ const HandleLogin = async (req, res) => {
 // ENDPOINT: /api/global/forget-password 
 const HandleForgotPassword = async (req, res) => {
     try {
-        const { email } = req.body;
-        const findUser = (
-            await User.findOne({ email: email }) ||
-            await AdminModel.findOne({ email: email }) ||
-            await StoreOwnerModel.findOne({ email: email }) || await RiderModel.findOne({ email: email })
-        );
+        const normalizedEmail = String(req.body?.email || '').trim().toLowerCase();
+        if (!normalizedEmail) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+
+        const findUser =
+            (await User.findOne({ email: normalizedEmail })) ||
+            (await AdminModel.findOne({ email: normalizedEmail })) ||
+            (await StoreOwnerModel.findOne({ email: normalizedEmail })) ||
+            (await RiderModel.findOne({ email: normalizedEmail }));
 
         if (!findUser) {
             return res.status(404).json({ message: "Sorry, Account With This Email Doesn't Exists" })
         }
 
-        const otpCode = Math.floor(
-            100000 + Math.random() * 900000
-        ).toString();
+        const otpCode = Math.floor(100000 + Math.random() * 900000);
 
-        const getOtpCode = otpCode;
-        const getOtpExpire = Date.now() + 600000;
-
-        findUser.OtpCode = getOtpCode || findUser.OtpCode
-        findUser.OtpExp = getOtpExpire || findUser.OtpExp
+        findUser.OtpCode = otpCode;
+        findUser.OtpExp = Date.now() + 600000;
 
         await findUser.save();
 
-        autoMailer(
-            {
+        try {
+            await autoMailer({
                 to: findUser.email,
                 subject: 'OTP VERIFICATION CODE',
-                message: `<h3>Your OTP Verification Code Is: </h3>
-                <h3> ${findUser.OtpCode}</h4>`
-            }
-        );
+                message: `<h3>Your OTP Verification Code Is: </h3><h3>${otpCode}</h3>`,
+            });
+        } catch (mailError) {
+            console.log('Forgot-password email failed:', mailError);
+            return res.status(500).json({ message: "Failed to send OTP email" });
+        }
 
         res.status(200).json({ message: "OTP Sent To Your Email" });
 
@@ -146,20 +147,24 @@ const HandleForgotPassword = async (req, res) => {
 // ENDPOINT: /api/global/verify-otp 
 const HandleVerifyOtp = async (req, res) => {
     try {
-        const { email, OtpCode } = req.body;
-        const findUser = await AdminModel.findOne({ email: email }) || await User.findOne({ email: email }) || await StoreOwnerModel.findOne({ email: email });
+        const normalizedEmail = String(req.body?.email || '').trim().toLowerCase();
+        const { OtpCode } = req.body;
+        const findUser =
+            (await AdminModel.findOne({ email: normalizedEmail })) ||
+            (await User.findOne({ email: normalizedEmail })) ||
+            (await StoreOwnerModel.findOne({ email: normalizedEmail }));
 
         if (!findUser) {
             return res.status(404).json({ message: "Sorry, We couldn't send your OTP Verification Code" });
         }
 
-        if (OtpCode === "") {
+        if (OtpCode === "" || OtpCode == null) {
             return res.status(404).json({ message: "OTP Field Is Required" })
         }
         if (findUser.OtpCode !== Number(OtpCode)) {
             return res.status(404).json({ message: "Invalid OTP Verification Code" })
         }
-        if (findUser.OtpCode === Number(OtpCode) && findUser.OtpExp && findUser.OtpExp > new Date()) {
+        if (findUser.OtpCode === Number(OtpCode) && findUser.OtpExp && findUser.OtpExp > Date.now()) {
             return res.status(200).json({ message: "OTP Verified Successfully" })
         } else {
             return res.status(404).json({ message: "OTP has expired or is invalid" });
@@ -204,37 +209,36 @@ const HandleResetPassword = async (req, res) => {
 // ENDPOINT: /api/global/resend-otp
 const HandleResendOtp = async (req, res) => {
     try {
-        const { email } = req.body;
+        const normalizedEmail = String(req.body?.email || '').trim().toLowerCase();
+        if (!normalizedEmail) {
+            return res.status(400).json({ message: "Email is required" });
+        }
 
-        const userExists = (
-            await AdminModel.findOne({ email: email }) ||
-            await User.findOne({ email: email }) ||
-            await StoreOwnerModel.findOne({ email: email })
-        );
+        const userExists =
+            (await AdminModel.findOne({ email: normalizedEmail })) ||
+            (await User.findOne({ email: normalizedEmail })) ||
+            (await StoreOwnerModel.findOne({ email: normalizedEmail }));
         if (!userExists) {
             return res.status(404).json({ message: "This Email Doesn't Exist" });
         }
 
-        const otpCode = await Math.floor(
-            100000 + Math.random() * 900000
-        ).toString();
+        const otpCode = Math.floor(100000 + Math.random() * 900000);
 
-        const getOtpCode = otpCode;
-        const getOtpExpire = Date.now() + 600000;
-
-        userExists.OtpCode = getOtpCode || userExists.OtpCode
-        userExists.OtpExp = getOtpExpire || userExists.OtpExp
+        userExists.OtpCode = otpCode;
+        userExists.OtpExp = Date.now() + 600000;
 
         await userExists.save();
 
-        autoMailer(
-            {
+        try {
+            await autoMailer({
                 to: userExists.email,
                 subject: 'OTP VERIFICATION CODE',
-                message: `<h3>Your OTP Verification Code Is: </h3>
-                <h3> ${userExists.OtpCode}</h4>`
-            }
-        );
+                message: `<h3>Your OTP Verification Code Is: </h3><h3>${otpCode}</h3>`,
+            });
+        } catch (mailError) {
+            console.log('Resend OTP email failed:', mailError);
+            return res.status(500).json({ message: "Failed to send OTP email" });
+        }
 
         res.status(200).json({ message: "OTP Re-Sent Successfully To Your Email" });
 
