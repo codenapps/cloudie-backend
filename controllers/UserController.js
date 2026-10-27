@@ -30,17 +30,17 @@ const HandleSignupUser = async (req, res) => {
             userLongitude
         } = req.body;
 
+        const normalizedEmail = String(email || "").trim().toLowerCase();
+        if (!normalizedEmail) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+
         const existingUser = await StoreOwnerModel.findOne({
-            $or: [
-                { email }]
+            $or: [{ email: normalizedEmail }],
         }) || await AdminModel.findOne({
-            $or: [
-                { email }
-            ]
+            $or: [{ email: normalizedEmail }],
         }) || await User.findOne({
-            $or: [
-                { email }
-            ]
+            $or: [{ email: normalizedEmail }],
         })
 
         if (existingUser) {
@@ -54,7 +54,7 @@ const HandleSignupUser = async (req, res) => {
 
         const newUser = new User({
             username,
-            email: email.toLowerCase(),
+            email: normalizedEmail,
             password,
             city,
             state,
@@ -94,6 +94,7 @@ const HandleSignupUser = async (req, res) => {
             });
         } catch (error) {
             console.log('Error sending OTP email:', error);
+            await User.findByIdAndDelete(newUser._id);
             return res.status(500).json({ message: "Failed to send OTP email" });
         }
 
