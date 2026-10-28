@@ -4,6 +4,7 @@ import StoreOwnerModel from "../../models/StoreOwnerModel.js";
 import User from "../../models/User.js";
 import SubscriptionModel from "../../models/SubscriptionModel.js";
 import autoMailer from "../../utils/AutoMailer.js";
+import { generateTokens } from "../../utils/jwt.js";
 
 
 // @POST
@@ -23,13 +24,25 @@ const HandleLogin = async (req, res) => {
             return res.status(400).json({ message: "Invalid Credentials" })
         }
 
+        // Common JWT payload
+        const jwtPayload = {
+            _id: findRoles._id.toString(),
+            email: findRoles.email,
+            role: findRoles.role
+        };
+
+        // Generate JWT tokens
+        const { accessToken, refreshToken } = generateTokens(jwtPayload);
+
         if (findRoles.role.includes('User')) {
             const token = {
                 _id: findRoles._id.toString(),
                 username: findRoles.username,
                 email: findRoles.email,
                 role: findRoles.role,
-                profile_image: findRoles.profile_image
+                profile_image: findRoles.profile_image,
+                accessToken,
+                refreshToken
             }
             return res.status(200).json({ message: "Logged In Successfully", token });
         } else if (findRoles.role.includes('StoreOwner')) {
@@ -53,7 +66,9 @@ const HandleLogin = async (req, res) => {
                 isSubscribed: validatePlan ? true : false,
                 planID: validatePlan ? validatePlan.planID : "",
                 planDuration: validatePlan ? validatePlan.duration[0] : "No Subscription",
-                storeStatus: findRoles.storeStatus
+                storeStatus: findRoles.storeStatus,
+                accessToken,
+                refreshToken
             }
 
             return res.status(200).json({ message: 'Logged In Successfully', token })
@@ -76,7 +91,9 @@ const HandleLogin = async (req, res) => {
                 postalCode: findRoles.postalCode,
                 status: findRoles.status,
                 verified: findRoles.verified,
-                isOtpVerified: findRoles.isOtpVerified
+                isOtpVerified: findRoles.isOtpVerified,
+                accessToken,
+                refreshToken
             }
 
             return res.status(200).json({ message: 'Logged In Successfully', token })
@@ -87,6 +104,8 @@ const HandleLogin = async (req, res) => {
                 email: findRoles.email,
                 password: findRoles.password,
                 role: findRoles.role,
+                accessToken,
+                refreshToken
             }
             return res.status(200).json({ message: 'Logged In Successfully', token })
         } else {
@@ -249,10 +268,63 @@ const HandleResendOtp = async (req, res) => {
     }
 }
 
+// @POST
+// ENDPOINT: /api/global/refresh-token
+const HandleRefreshToken = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+
+        if (!refreshToken) {
+            return res.status(400).json({ message: "Refresh token is required" });
+        }
+
+        const { verifyRefreshToken, generateTokens } = await import('../../utils/jwt.js');
+        const decoded = verifyRefreshToken(refreshToken);
+
+        if (!decoded) {
+            return res.status(401).json({ message: "Invalid or expired refresh token" });
+        }
+
+        // Generate new tokens with the same payload
+        const jwtPayload = {
+            _id: decoded._id,
+            email: decoded.email,
+            role: decoded.role
+        };
+
+        const tokens = generateTokens(jwtPayload);
+
+        res.status(200).json({
+            message: "Token refreshed successfully",
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken
+        });
+
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+// @POST
+// ENDPOINT: /api/global/logout
+const HandleLogout = async (req, res) => {
+    try {
+        // In a production app, you'd blacklist the refresh token here
+        // For now, we just return success - client should delete tokens from storage
+        res.status(200).json({ message: "Logged out successfully" });
+    } catch (error) {
+        console.error('Error during logout:', error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
 export {
     HandleLogin,
     HandleForgotPassword,
     HandleVerifyOtp,
     HandleResetPassword,
-    HandleResendOtp
+    HandleResendOtp,
+    HandleRefreshToken,
+    HandleLogout
 }

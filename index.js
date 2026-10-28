@@ -27,6 +27,7 @@ import PlanExpirationHelper from "./utils/PlanExpirationHelper.js";
 import { Server } from "socket.io";
 import { createServer } from "http";
 import { ChatSocket } from "./sockets/Chat.js";
+import { apiLimiter, authLimiter, loginLimiter, passwordResetLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
 app.use(express.json());
@@ -41,6 +42,9 @@ app.use(cors({
     credentials: true,
     methods: ["POST", "GET", "PATCH", "DELETE"]
 }));
+
+// Apply general rate limiter to all API routes
+app.use("/api", apiLimiter);
 
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
