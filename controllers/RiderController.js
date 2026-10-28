@@ -6,7 +6,7 @@ import autoMailer from "../utils/AutoMailer.js";
 import { generatePass } from "../utils/PasswordGenerator.js";
 import Order from "../models/OrderModel.js";
 import { v2 as cloudinary } from "cloudinary";
-
+import bcrypt from "bcrypt";
 
 // @PATCH
 // /api/riders/adminID/create-riders
@@ -52,9 +52,10 @@ const HandleInviteRiders = async (req, res) => {
 
             const createRiders = await Promise.all(validationResults.map(async (result) => {
                 const password = generatePass();
+                const hashPassword = await bcrypt.hash(password, 12);
                 const createRider = new RiderModel({
                     email: result.email,
-                    password: password,
+                    password: hashPassword,
                 });
                 await createRider.save();
 

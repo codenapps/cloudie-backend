@@ -10,7 +10,7 @@ import ProductModel from "../models/ProductModel.js";
 import RiderModel from "../models/RiderModel.js";
 import CategoryModel from "../models/CategoryModel.js";
 import AdminModel from "../models/AdminModel.js";
-
+import bcrypt from "bcrypt";
 
 const HandleGetAllUsers = (req, res) => {
     try {
@@ -31,10 +31,12 @@ const HandleCreateAdmin = async (req, res) => {
             return res.status(400).json({ messsage: "Invalid Signup Request" })
         }
 
+        const hashPassword = await bcrypt.hash(password, 12);
+
         const newAdmin = new AdminSchema({
             username,
             email,
-            password,
+            password: hashPassword,
             role
         });
         await newAdmin.save();

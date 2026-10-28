@@ -3,6 +3,7 @@ import RiderModel from "../models/RiderModel.js";
 import StoreOwnerModel from "../models/StoreOwnerModel.js";
 import User from "../models/User.js";
 import autoMailer from "../utils/AutoMailer.js";
+import bcrypt from "bcrypt";
 
 const HandleGetAllUsers = (req, res) => {
     try {
@@ -52,10 +53,12 @@ const HandleSignupUser = async (req, res) => {
         const getOtpCode = otpCode;
         const getOtpExpire = Date.now() + 600000;
 
+        const hashPassword = await bcrypt.hash(password, 12);
+
         const newUser = new User({
             username,
             email: normalizedEmail,
-            password,
+            password: hashPassword,
             city,
             state,
             country,
@@ -278,7 +281,5 @@ const HandleGetAllUser = async (req, res) => {
         });
     }
 };
-
-
 
 export { HandleGetAllUsers, HandleSignupUser, HandleVerifyUserOtp, HandleUpdateUser, HandleGetSingleUser, HandleGetAllUser };

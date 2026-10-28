@@ -1,6 +1,7 @@
 import express from "express";
-import { HandleForgotPassword, HandleLogin, HandleResendOtp, HandleResetPassword, HandleVerifyOtp, HandleRefreshToken, HandleLogout } from "../../controllers/GlobalControllers/AuthControllers.js";
+import { HandleForgotPassword, HandleLogin, HandleResendOtp, HandleResetPassword, HandleVerifyOtp, HandleRefreshToken, HandleLogout, handleChangePassoword } from "../../controllers/GlobalControllers/AuthControllers.js";
 import { loginLimiter, passwordResetLimiter, authLimiter } from "../../middleware/rateLimiter.js";
+import { authenticateToken } from "../../middleware/auth.js";
 
 const router = express.Router();
 
@@ -21,5 +22,8 @@ router.patch("/resend-otp", passwordResetLimiter, HandleResendOtp);
 router.post("/refresh-token", HandleRefreshToken);
 
 router.post("/logout", HandleLogout);
+
+router.use(authenticateToken);
+router.patch("/change-password/:id",passwordResetLimiter, handleChangePassoword)
 
 export default router;

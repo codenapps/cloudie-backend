@@ -5,22 +5,25 @@ import User from "../../models/User.js";
 import SubscriptionModel from "../../models/SubscriptionModel.js";
 import autoMailer from "../../utils/AutoMailer.js";
 import { generateTokens } from "../../utils/jwt.js";
-
+import bcrypt from "bcrypt";
 
 // @POST
 // ENDPOINT: /api/global/login
 const HandleLogin = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const findRoles = await AdminModel.findOne({ email, password })
-            || await User.findOne({ email, password })
-            || await StoreOwnerModel.findOne({ email, password }) || await RiderModel.findOne({ email, password });
 
+        const findRoles = await AdminModel.findOne({ email })
+            || await User.findOne({ email })
+            || await StoreOwnerModel.findOne({ email }) || await RiderModel.findOne({ email });
+        
         if (!findRoles) {
             return res.status(404).json({ message: "Invalid Credentials" })
         }
 
-        if (email !== findRoles.email || password !== findRoles.password) {
+        const match = await bcrypt.compare(password, findRoles.password);
+
+        if (email != findRoles.email || !match) {
             return res.status(400).json({ message: "Invalid Credentials" })
         }
 
@@ -205,7 +208,8 @@ const HandleResetPassword = async (req, res) => {
         const findUser = (
             await AdminModel.findOne({ email: email }) ||
             await User.findOne({ email: email }) ||
-            await StoreOwnerModel.findOne({ email: email })
+            await StoreOwnerModel.findOne({ email: email }) || 
+            await RiderModel.findOne({ email: email })
         );
 
         if (!findUser) {
@@ -216,7 +220,9 @@ const HandleResetPassword = async (req, res) => {
             return res.status(404).json({ message: "Passwords Must Be Same" });
         }
 
-        findUser.password = password || findUser.password
+        const hashPassword = await bcrypt.hash(password, 12);
+
+        findUser.password = hashPassword;
         await findUser.save();
         res.status(200).json({ message: "Password Reset Successfully" })
     } catch (error) {
@@ -319,6 +325,56 @@ const HandleLogout = async (req, res) => {
     }
 }
 
+// @Patch
+// ENDPOINT: /api/global/change-password/:id
+const handleChangePassoword = async(req, res) => {
+    try {
+        const {
+            id
+        } = req.params;
+
+        const findRoles = await AdminModel.findById(id)
+            || await User.findById(id)
+            || await StoreOwnerModel.findById(id) || await RiderModel.findById(id);
+        
+        if(!findRoles){
+            return res.status(404).json({
+                message: "Not Found"
+            });
+        }
+
+        const {
+            currentPassword,
+            password,
+            reEnterPassword
+        } = req.body;
+
+        const match = await bcrypt.compare(currentPassword, findRoles.password);
+
+        if(!match){
+            return res.status(400).json({
+                message: "The current password is incorrect."
+            })
+        }
+        if(password != reEnterPassword){
+            return res.status(400).json({
+                message: "Password does not match"
+            })
+        }
+
+        const hashPassword = await bcrypt.hash(password, 12);
+
+        findRoles.password = hashPassword;
+
+        await findRoles.save();
+
+        res.status(200).json({ message: "Password change successfully!" })
+    } catch (error) {
+        console.error('Error during logout:', error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
 export {
     HandleLogin,
     HandleForgotPassword,
@@ -326,5 +382,6 @@ export {
     HandleResetPassword,
     HandleResendOtp,
     HandleRefreshToken,
-    HandleLogout
+    HandleLogout,
+    handleChangePassoword
 }

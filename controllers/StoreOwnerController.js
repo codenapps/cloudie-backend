@@ -8,6 +8,7 @@ import fs from "fs"
 import ProductModel from "../models/ProductModel.js";
 import SubscriptionModel from "../models/SubscriptionModel.js";
 import OrderModel from "../models/OrderModel.js";
+import bcrypt from "bcrypt";
 
 // @POST
 // /api/store/create-store
@@ -171,10 +172,12 @@ const HandleSignupStore = async (req, res) => {
 
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
+        const hashPassword = await bcrypt.hash(password, 12);
+
         const newStore = new StoreOwnerModel({
             storeName,
             email: email.toLowerCase(),
-            password,
+            password: hashPassword,
             description,
             city,
             state,
