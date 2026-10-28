@@ -27,7 +27,7 @@ import PlanExpirationHelper from "./utils/PlanExpirationHelper.js";
 import { Server } from "socket.io";
 import { createServer } from "http";
 import { ChatSocket } from "./sockets/Chat.js";
-import { apiLimiter, authLimiter, loginLimiter, passwordResetLimiter } from "./middleware/rateLimiter.js";
+import { apiLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
 app.use(express.json());
