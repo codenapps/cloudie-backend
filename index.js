@@ -89,7 +89,7 @@ app.use(ErrorHandler);
 const io = new Server(httpServer, {
     pingTimeout: 60000,
     cors: {
-        origin: "https://cloudie-webapp.vercel.app",
+        origin: process.env.CORS_ORIGIN,
         methods: ['GET', "POST", "PUT", "DELETE", "PATCH"],
         credentials: true
     }
