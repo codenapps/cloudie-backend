@@ -52,7 +52,8 @@ const HandleLogin = async (req, res) => {
                 isOtpVerified: findRoles.isOtpVerified,
                 isSubscribed: validatePlan ? true : false,
                 planID: validatePlan ? validatePlan.planID : "",
-                planDuration: validatePlan ? validatePlan.duration[0] : "No Subscription"
+                planDuration: validatePlan ? validatePlan.duration[0] : "No Subscription",
+                storeStatus: findRoles.storeStatus
             }
 
             return res.status(200).json({ message: 'Logged In Successfully', token })

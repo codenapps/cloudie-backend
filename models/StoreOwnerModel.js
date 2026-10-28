@@ -99,11 +99,11 @@ const StoreOwner = new Schema({
         enum: ['Active', 'Inactive'],
         default: ['Active']
     },
-    // storeStatus: {
-    //     type: [String],
-    //     enum: ['Open', 'Close'],
-    //     default: ['Close']
-    // },
+    storeStatus: {
+        type: [String],
+        enum: ['Open', 'Close'],
+        default: ['Close']
+    },
     categories: {
         type: String,
         enum: ['snack-seller', 'non-snack-seller'],

@@ -4,7 +4,7 @@ const { Schema } = mongoose;
 const ProductModel = new Schema({
     storeID: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'storeOwner'
+        ref: 'StoreOwner'
     },
     title: {
         type: String,
@@ -85,6 +85,10 @@ const ProductModel = new Schema({
         type: [String],
         enum: ['Active', 'Draft', 'Completed', 'In Progress'],
         default: ['Active']
+    },
+    salesCount: {
+        type: Number,
+        default: 0
     }
 
 }, { timestamps: true });

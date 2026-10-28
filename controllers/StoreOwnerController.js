@@ -7,12 +7,7 @@ import stripe from "../utils/StripeConfig.js";
 import fs from "fs"
 import ProductModel from "../models/ProductModel.js";
 import SubscriptionModel from "../models/SubscriptionModel.js";
-import CategoryModel from "../models/CategoryModel.js";
 import OrderModel from "../models/OrderModel.js";
-import PlanModel from "../models/PlanModel.js";
-import RiderModel from "../models/RiderModel.js";
-import mongoose from "mongoose";
-
 
 // @POST
 // /api/store/create-store
@@ -301,7 +296,8 @@ const HandleUpdateStore = async (req, res) => {
             postalCode,
             status,
             storeLatitude,
-            storeLongitude
+            storeLongitude,
+            storeStatus
         } = req.body;
 
         const findStore = await StoreOwnerModel.findById(storeID);
@@ -358,6 +354,7 @@ const HandleUpdateStore = async (req, res) => {
         findStore.w9form = w9formResult.secure_url || findStore.w9form
         findStore.storeLatitude = storeLatitude || findStore.storeLatitude
         findStore.storeLongitude = storeLongitude || findStore.storeLongitude
+        findStore.storeStatus = storeStatus || findStore.storeStatus
 
         await findStore.save();
 
@@ -365,7 +362,6 @@ const HandleUpdateStore = async (req, res) => {
             _id: findStore._id.toString(),
             username: findStore.username,
             email: findStore.email,
-            password: findStore.password,
             role: findStore.role,
             description: findStore.description,
             city: findStore.city,
@@ -378,7 +374,8 @@ const HandleUpdateStore = async (req, res) => {
             verified: findStore.verified,
             isOtpVerified: findStore.isOtpVerified,
             storeLatitude: storeLatitude,
-            storeLongitude: storeLongitude
+            storeLongitude: storeLongitude,
+            storeStatus: findStore.storeStatus,
         }
 
         res.status(200).json({ message: "Store Updated Successfully", token });

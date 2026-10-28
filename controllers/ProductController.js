@@ -275,52 +275,126 @@ const HandleUpdateProduct = async (req, res) => {
     }
 };
 
+// @GET
+// /api/products/get-products
+// Query params: id (user/admin/storeOwner id), category, keyword, page, limit
 const HandleGetProducts = async (req, res) => {
-    try {
-        const { category, keyword, id } = req.query;
-        let { page = 1, limit = 10 } = req.query;
-        page = parseInt(page);
-        limit = parseInt(limit);
+  try {
+    const { category, keyword, id } = req.query;
+    let { page = 1, limit = 10 } = req.query;
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const skip = (page - 1) * limit;
 
-        const findUser = await User.findById(id) || await StoreOwnerModel.findById(id) || await AdminModel.findById(id);
+    // Determine user role from provided id
+    let isAdmin = false;
+    let isStoreOwner = false;
+    let userId = null;
 
-        const findStores = await StoreOwnerModel.find({ status: 'Active' });
-        const extractStoreIDs = findStores.map(store => store._id.toString());
+    if (id) {
+      const user = await User.findById(id);
+      const storeOwner = await StoreOwnerModel.findById(id);
+      const admin = await AdminModel.findById(id);
 
-        let filter = { status: 'Active' };
-
-        // Apply category filter
-        if (category) filter.category = { $in: Array.isArray(category) ? category : [category] };
-
-        // Apply store filter
-        if (findUser && findUser.role.includes('StoreOwner')) filter.storeID = id;
-        else filter.storeID = { $in: extractStoreIDs };
-
-        // Apply keyword filter
-        if (keyword) filter.title = { $regex: keyword, $options: 'i' };
-
-        // Get total count for pagination
-        const totalProducts = await ProductModel.countDocuments(filter);
-
-        // Fetch paginated products
-        const products = await ProductModel.find(filter)
-            .populate({ path: 'category', model: 'categories' })
-            .populate({ path: 'storeID', model: 'StoreOwner', select: '-password' })
-            .skip((page - 1) * limit)
-            .limit(limit)
-            .exec();
-
-        res.status(200).json({
-            products,
-            totalPages: Math.ceil(totalProducts / limit),
-            currentPage: page,
-            totalProducts
-        });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Internal Server Error" });
+      if (admin) {
+        isAdmin = true;
+        userId = id;
+      } else if (storeOwner) {
+        isStoreOwner = true;
+        userId = id;
+      } else if (user) {
+        userId = id;
+      }
     }
+
+    const matchStage = { status: 'Active' };
+
+    if (category) {
+      matchStage.category = {
+        $in: Array.isArray(category) ? category : [category],
+      };
+    }
+
+    if (keyword) {
+      matchStage.title = { $regex: keyword, $options: 'i' };
+    }
+
+    // StoreOwner only sees their own products
+    if (isStoreOwner) {
+      matchStage.storeID = new ProductModel.base.Types.ObjectId(userId);
+    }
+
+    // For regular users (not admin, not storeOwner), only show products from Open stores
+    const enforceOpenStore = !isAdmin && !isStoreOwner;
+
+    const pipeline = [
+      { $match: matchStage },
+
+      {
+        $lookup: {
+          from: 'storeowners',
+          localField: 'storeID',
+          foreignField: '_id',
+          as: 'store',
+        },
+      },
+      { $unwind: '$store' },
+
+      // Filter by storeStatus = 'Open' for regular users
+      // storeStatus is an array ['Open'] or ['Close'] - use $in to check
+      ...(enforceOpenStore
+        ? [{ $match: { 'store.storeStatus': { $in: ['Open'] } } }]
+        : []),
+
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'category',
+          foreignField: '_id',
+          as: 'category',
+        },
+      },
+      {
+        $unwind: {
+          path: '$category',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      {
+        $addFields: {
+          storeID: {
+            _id: '$store._id',
+            name: '$store.storeName',
+            storeStatus: '$store.storeStatus',
+            email: '$store.email',
+          },
+        },
+      },
+      { $project: { store: 0 } },
+
+      {
+        $facet: {
+          products: [{ $skip: skip }, { $limit: limit }],
+          totalCount: [{ $count: 'count' }],
+        },
+      },
+    ];
+
+    const result = await ProductModel.aggregate(pipeline);
+    const products = result[0]?.products || [];
+    const totalProducts = result[0]?.totalCount?.[0]?.count || 0;
+
+    res.status(200).json({
+      products,
+      totalPages: Math.ceil(totalProducts / limit),
+      currentPage: page,
+      totalProducts,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
 };
 
 // @DELETE
@@ -344,40 +418,115 @@ const HandleDeleteProduct = async (req, res) => {
     }
 }
 
+// @GET
+// /api/products/best-sellers
+// Query params: limit, id (user id for role-based filtering)
 const HandleGetBestSellers = async (req, res) => {
     try {
-        const { limit = 10 } = req.query;
+        const { limit = 10, id } = req.query;
 
         const parsedLimit = parseInt(limit);
         if (isNaN(parsedLimit) || parsedLimit <= 0) {
             return res.status(400).json({ message: 'Invalid limit parameter. It must be a positive integer.' });
         }
 
-        const bestSellers = await ProductModel.find({ status: 'Active' })
-            .populate({
-                path: 'category',
-                model: 'categories',
-            })
-            .populate({
-                path: 'storeID',
-                model: 'StoreOwner',
-                select: '-password',
-            })
-            .exec();
+        // Determine user role from provided id
+        let isAdmin = false;
+        let isStoreOwner = false;
+
+        if (id) {
+            const user = await User.findById(id);
+            const storeOwner = await StoreOwnerModel.findById(id);
+            const admin = await AdminModel.findById(id);
+
+            if (admin) {
+                isAdmin = true;
+            } else if (storeOwner) {
+                isStoreOwner = true;
+            }
+        }
+
+        // For regular users (not admin, not storeOwner), only show products from Open stores
+        const enforceOpenStore = !isAdmin && !isStoreOwner;
+
+        const pipeline = [
+            { $match: { status: 'Active' } },
+
+            {
+                $lookup: {
+                    from: 'storeowners',
+                    localField: 'storeID',
+                    foreignField: '_id',
+                    as: 'store',
+                },
+            },
+            { $unwind: '$store' },
+
+            // Filter by storeStatus = 'Open' for regular users
+            ...(enforceOpenStore
+                ? [{ $match: { 'store.storeStatus': { $in: ['Open'] } } }]
+                : []),
+
+            {
+                $lookup: {
+                    from: 'categories',
+                    localField: 'category',
+                    foreignField: '_id',
+                    as: 'category',
+                },
+            },
+            {
+                $unwind: {
+                    path: '$category',
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+
+            // Sort by salesCount descending and limit
+            { $sort: { salesCount: -1 } },
+            { $limit: parsedLimit },
+        ];
+
+        const bestSellers = await ProductModel.aggregate(pipeline);
 
         if (bestSellers.length === 0) {
             return res.status(404).json({ message: 'No best-selling products found.' });
         }
 
-        if (bestSellers.length > parsedLimit) {
-            bestSellers.sort((a, b) => b.salesCount - a.salesCount);
-        }
-
-        const result = bestSellers.slice(0, parsedLimit);
-        res.status(200).json(result);
+        res.status(200).json(bestSellers);
 
     } catch (error) {
         console.error('Error fetching best sellers:', error);
+        if (error.name === 'MongoError') {
+            return res.status(500).json({ message: 'Database error occurred', error });
+        }
+        res.status(500).json({ message: 'Internal server error', error });
+    }
+};
+
+// @GET
+// /api/products/get-product/:productId
+// Returns single product details (no role-based filtering)
+const HandleGetSingleProduct = async (req, res) => {
+    try {
+        const { productId } = req.params;
+
+        if (!productId) {
+            return res.status(400).json({ message: 'Product ID is required' });
+        }
+
+        const product = await ProductModel.findById(productId)
+            .populate('category', 'name')
+            .populate('storeID', 'storeName storeStatus email');
+
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+        res.status(200).json(product);
+
+    } catch (error) {
+        console.error('Error fetching single product:', error);
         if (error.name === 'MongoError') {
             return res.status(500).json({ message: 'Database error occurred', error });
         }
@@ -391,5 +540,6 @@ export {
     HandleUpdateProduct,
     HandleGetProducts,
     HandleDeleteProduct,
-    HandleGetBestSellers
+    HandleGetBestSellers,
+    HandleGetSingleProduct
 }
