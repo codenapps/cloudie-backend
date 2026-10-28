@@ -99,6 +99,11 @@ const StoreOwner = new Schema({
         enum: ['Active', 'Inactive'],
         default: ['Active']
     },
+    // storeStatus: {
+    //     type: [String],
+    //     enum: ['Open', 'Close'],
+    //     default: ['Close']
+    // },
     categories: {
         type: String,
         enum: ['snack-seller', 'non-snack-seller'],
@@ -112,7 +117,7 @@ const StoreOwner = new Schema({
         type: Number,
         required: true
     }
-    
+
 }, { timestamps: true });
 
 export default mongoose.model("StoreOwner", StoreOwner);
