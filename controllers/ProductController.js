@@ -280,11 +280,14 @@ const HandleUpdateProduct = async (req, res) => {
 // Query params: id (user/admin/storeOwner id), category, keyword, page, limit
 const HandleGetProducts = async (req, res) => {
   try {
-    const { category, keyword, id } = req.query;
+    const { category, keyword, id, lat, lng } = req.query;
     let { page = 1, limit = 10 } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
     const skip = (page - 1) * limit;
+    const userLat = lat != null && lat !== '' ? parseFloat(lat) : null;
+    const userLng = lng != null && lng !== '' ? parseFloat(lng) : null;
+    const sortByDistance = Number.isFinite(userLat) && Number.isFinite(userLng);
 
     // Determine user role from provided id
     let isAdmin = false;
@@ -368,10 +371,43 @@ const HandleGetProducts = async (req, res) => {
             name: '$store.storeName',
             storeStatus: '$store.storeStatus',
             email: '$store.email',
+            storeLatitude: '$store.storeLatitude',
+            storeLongitude: '$store.storeLongitude',
           },
+          ...(sortByDistance
+            ? {
+                distance: {
+                  $add: [
+                    {
+                      $pow: [
+                        {
+                          $subtract: [
+                            { $ifNull: ['$store.storeLatitude', userLat] },
+                            userLat,
+                          ],
+                        },
+                        2,
+                      ],
+                    },
+                    {
+                      $pow: [
+                        {
+                          $subtract: [
+                            { $ifNull: ['$store.storeLongitude', userLng] },
+                            userLng,
+                          ],
+                        },
+                        2,
+                      ],
+                    },
+                  ],
+                },
+              }
+            : {}),
         },
       },
       { $project: { store: 0 } },
+      ...(sortByDistance ? [{ $sort: { distance: 1 } }] : []),
 
       {
         $facet: {
@@ -423,12 +459,16 @@ const HandleDeleteProduct = async (req, res) => {
 // Query params: limit, id (user id for role-based filtering)
 const HandleGetBestSellers = async (req, res) => {
     try {
-        const { limit = 10, id } = req.query;
+        const { limit = 10, id, lat, lng } = req.query;
 
         const parsedLimit = parseInt(limit);
         if (isNaN(parsedLimit) || parsedLimit <= 0) {
             return res.status(400).json({ message: 'Invalid limit parameter. It must be a positive integer.' });
         }
+
+        const userLat = lat != null && lat !== '' ? parseFloat(lat) : null;
+        const userLng = lng != null && lng !== '' ? parseFloat(lng) : null;
+        const sortByDistance = Number.isFinite(userLat) && Number.isFinite(userLng);
 
         // Determine user role from provided id
         let isAdmin = false;
@@ -482,8 +522,41 @@ const HandleGetBestSellers = async (req, res) => {
                 },
             },
 
-            // Sort by salesCount descending and limit
-            { $sort: { salesCount: -1 } },
+            ...(sortByDistance
+                ? [
+                    {
+                      $addFields: {
+                        distance: {
+                          $add: [
+                            {
+                              $pow: [
+                                {
+                                  $subtract: [
+                                    { $ifNull: ['$store.storeLatitude', userLat] },
+                                    userLat,
+                                  ],
+                                },
+                                2,
+                              ],
+                            },
+                            {
+                              $pow: [
+                                {
+                                  $subtract: [
+                                    { $ifNull: ['$store.storeLongitude', userLng] },
+                                    userLng,
+                                  ],
+                                },
+                                2,
+                              ],
+                            },
+                          ],
+                        },
+                      },
+                    },
+                    { $sort: { distance: 1, salesCount: -1 } },
+                  ]
+                : [{ $sort: { salesCount: -1 } }]),
             { $limit: parsedLimit },
         ];
 

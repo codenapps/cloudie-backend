@@ -60,7 +60,7 @@ const HandleCreateAdmin = async (req, res) => {
 const HandleUpdateAdmin = async (req, res) => {
     try {
         const { id } = req.params;
-        const { username, email, password } = req.body;
+        const { username, email } = req.body;
 
         const findAdmin = await AdminSchema.findById(id);
         if (!findAdmin) {
@@ -69,13 +69,11 @@ const HandleUpdateAdmin = async (req, res) => {
 
         findAdmin.username = username || findAdmin.username
         findAdmin.email = email || findAdmin.email
-        findAdmin.password = password || findAdmin.password
         await findAdmin.save();
 
         const token = {
             username: findAdmin.username,
             email: findAdmin.email,
-            password: findAdmin.password,
             role: findAdmin.role,
         }
 

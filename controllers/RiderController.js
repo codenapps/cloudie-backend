@@ -299,7 +299,6 @@ const HandleUpdateRiders = async (req, res) => {
             vehicleType,
             email,
             status,
-            password,
             city,
             state,
             country,
@@ -331,7 +330,6 @@ const HandleUpdateRiders = async (req, res) => {
         findRider.username = username || findRider.username
         findRider.phone = phone || findRider.phone
         findRider.email = email || findRider.email
-        findRider.password = password || findRider.password
         findRider.verified = verified || findRider.verified
         findRider.vehicleType = vehicleType || findRider.vehicleType
         findRider.w9form = w9formResult?.secure_url || findRider.w9form
@@ -351,7 +349,6 @@ const HandleUpdateRiders = async (req, res) => {
             _id: findRider._id.toString(),
             username: findRider.username,
             email: findRider.email,
-            password: findRider.password,
             role: findRider.role,
             phone: findRider.phone,
             vehicleType: findRider.vehicleType,

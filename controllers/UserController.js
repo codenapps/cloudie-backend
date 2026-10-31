@@ -169,7 +169,6 @@ const HandleUpdateUser = async (req, res) => {
         const {
             username,
             email,
-            password,
             city,
             state,
             country,
@@ -187,16 +186,14 @@ const HandleUpdateUser = async (req, res) => {
 
         findUser.username = username || findUser.username
         findUser.email = email?.toLowerCase() || findUser.email
-        findUser.password = password || findUser.password
         findUser.city = city || findUser.city
         findUser.state = state || findUser.state
         findUser.country = country || findUser.country
         findUser.phone = phone || findUser.phone
         findUser.addressLine = addressLine || findUser.addressLine
         findUser.postalCode = postalCode || findUser.postalCode
-        findUser.userLatitude = userLatitude || findUser.userLatitude
-        findUser.userLongitude = userLongitude || findUser.userLongitude
-        console.log(findUser, "findUser");
+        if (userLatitude != null) findUser.userLatitude = userLatitude;
+        if (userLongitude != null) findUser.userLongitude = userLongitude;
 
         await findUser.save();
 
@@ -204,7 +201,6 @@ const HandleUpdateUser = async (req, res) => {
             _id: findUser._id.toString(),
             username: findUser.username,
             email: findUser.email,
-            password: findUser.password,
             role: findUser.role,
             city: findUser.city,
             state: findUser.state,
@@ -212,6 +208,8 @@ const HandleUpdateUser = async (req, res) => {
             addressLine: findUser.addressLine,
             phone: findUser.phone,
             postalCode: findUser.postalCode,
+            userLatitude: findUser.userLatitude,
+            userLongitude: findUser.userLongitude,
             isOtpVerified: findUser.isOtpVerified
         }
 
@@ -228,7 +226,8 @@ const HandleUpdateUser = async (req, res) => {
 const HandleGetSingleUser = async (req, res) => {
     try {
         const { userID } = req.params;
-        const findUser = await User.findById(userID) || await RiderModel.findById(userID);
+        const findUser = await User.findById(userID).select('-password')
+            || await RiderModel.findById(userID).select('-password');
         if (!findUser) {
             return res.status(404).json({ message: "Invalid Request" });
         }

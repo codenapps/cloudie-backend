@@ -44,6 +44,8 @@ const HandleLogin = async (req, res) => {
                 email: findRoles.email,
                 role: findRoles.role,
                 profile_image: findRoles.profile_image,
+                userLatitude: findRoles.userLatitude,
+                userLongitude: findRoles.userLongitude,
                 accessToken,
                 refreshToken
             }
@@ -55,7 +57,6 @@ const HandleLogin = async (req, res) => {
                 _id: findRoles._id.toString(),
                 username: findRoles.storeName,
                 email: findRoles.email,
-                password: findRoles.password,
                 role: findRoles.role,
                 description: findRoles.description,
                 city: findRoles.city,
@@ -81,7 +82,6 @@ const HandleLogin = async (req, res) => {
                 _id: findRoles._id.toString(),
                 username: findRoles.username,
                 email: findRoles.email,
-                password: findRoles.password,
                 role: findRoles.role,
                 phone: findRoles.phone,
                 vehicleType: findRoles.vehicleType,
@@ -105,7 +105,6 @@ const HandleLogin = async (req, res) => {
                 _id: findRoles._id.toString(),
                 username: findRoles.username,
                 email: findRoles.email,
-                password: findRoles.password,
                 role: findRoles.role,
                 accessToken,
                 refreshToken
@@ -333,6 +332,10 @@ const handleChangePassoword = async(req, res) => {
             id
         } = req.params;
 
+        if (req.user?._id !== id) {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+
         const findRoles = await AdminModel.findById(id)
             || await User.findById(id)
             || await StoreOwnerModel.findById(id) || await RiderModel.findById(id);
@@ -370,7 +373,7 @@ const handleChangePassoword = async(req, res) => {
 
         res.status(200).json({ message: "Password change successfully!" })
     } catch (error) {
-        console.error('Error during logout:', error);
+        console.error('Error during change password:', error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
