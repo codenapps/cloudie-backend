@@ -310,7 +310,7 @@ const HandleGetProducts = async (req, res) => {
       }
     }
 
-    const matchStage = { status: 'Active' };
+    const matchStage = { status: { $in: ['Active'] } };
 
     if (category) {
       matchStage.category = {
@@ -346,7 +346,7 @@ const HandleGetProducts = async (req, res) => {
       // Filter by storeStatus = 'Open' for regular users
       // storeStatus is an array ['Open'] or ['Close'] - use $in to check
       ...(enforceOpenStore
-        ? [{ $match: { 'store.storeStatus': { $in: ['Open'] } } }]
+        ? [{ $match: { 'store.storeStatus': 'Open' } }]
         : []),
 
       {
@@ -490,7 +490,7 @@ const HandleGetBestSellers = async (req, res) => {
         const enforceOpenStore = !isAdmin && !isStoreOwner;
 
         const pipeline = [
-            { $match: { status: 'Active' } },
+            { $match: { status: { $in: ['Active'] } } },
 
             {
                 $lookup: {
@@ -504,7 +504,7 @@ const HandleGetBestSellers = async (req, res) => {
 
             // Filter by storeStatus = 'Open' for regular users
             ...(enforceOpenStore
-                ? [{ $match: { 'store.storeStatus': { $in: ['Open'] } } }]
+                ? [{ $match: { 'store.storeStatus': 'Open' } }]
                 : []),
 
             {
@@ -594,6 +594,20 @@ const HandleGetSingleProduct = async (req, res) => {
 
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
+        }
+
+        const store = product.storeID;
+        const isStoreOwner =
+            req.user?.role?.includes('StoreOwner') &&
+            req.user?._id === store?._id?.toString();
+        const isAdmin = req.user?.role?.includes('Admin');
+
+        if (
+            !isStoreOwner &&
+            !isAdmin &&
+            (!store?.storeStatus?.includes('Open') || !product.status?.includes('Active'))
+        ) {
+            return res.status(404).json({ message: 'Product not available' });
         }
 
         res.status(200).json(product);

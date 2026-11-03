@@ -116,7 +116,14 @@ const StoreOwner = new Schema({
     storeLongitude: {
         type: Number,
         required: true
-    }
+    },
+    lastSeenAt: {
+        type: Date,
+    },
+    storeEarnings: {
+        type: Number,
+        default: 0,
+    },
 
 }, { timestamps: true });
 

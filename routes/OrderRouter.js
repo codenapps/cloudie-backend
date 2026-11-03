@@ -1,6 +1,7 @@
 import express from "express";
 import {
     HandlePlaceOrder,
+    HandleStoreOrderResponse,
     HandleGetUserOrders,
     HandleGetUserOrdersStore,
     HandleGetSingleOrder,
@@ -16,6 +17,7 @@ const router = express.Router();
 router.use(authenticateToken);
 
 router.post("/:userId/place", HandlePlaceOrder);
+router.patch("/store/:storeID/:orderId/respond", HandleStoreOrderResponse);
 router.get("/user/:userId", HandleGetUserOrders);
 router.get("/store/:storeID", HandleGetUserOrdersStore);
 router.get("/order-details/:adminId", HandleGetAllsUserOrdersStore);

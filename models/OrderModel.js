@@ -34,14 +34,36 @@ const OrderSchema = new mongoose.Schema({
             },
         }
     ],
+    storeID: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'StoreOwner',
+    },
+    subtotal: {
+        type: Number,
+        required: true,
+    },
+    storePayout: {
+        type: Number,
+        required: true,
+    },
     totalAmount: {
         type: Number,
         required: true
     },
     status: {
         type: String,
-        enum: ['Pending', "InProgress", 'Assigned', 'Shipped', 'Delivered', 'Cancelled'],
-        default: 'Pending'
+        enum: [
+            'Pending',
+            'PendingStoreAccept',
+            'ReadyForPickup',
+            'StoreRejected',
+            'InProgress',
+            'Assigned',
+            'Shipped',
+            'Delivered',
+            'Cancelled',
+        ],
+        default: 'PendingStoreAccept'
     },
     message: {
         type: String,
@@ -83,14 +105,14 @@ const OrderSchema = new mongoose.Schema({
         enum: ["Paid", "Unpaid"],
         default: "Paid",
     },
-    // riderFare: { 
-    //     type: Number,
-    //     default: 0
-    // },
-    // adminFare: {
-    //     type: Number,
-    //     default: 0
-    // },
+    riderFare: {
+        type: Number,
+        default: 0,
+    },
+    adminFare: {
+        type: Number,
+        default: 0,
+    },
 
 }, { timestamps: true });
 

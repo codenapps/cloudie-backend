@@ -315,8 +315,17 @@ const HandleRefreshToken = async (req, res) => {
 // ENDPOINT: /api/global/logout
 const HandleLogout = async (req, res) => {
     try {
-        // In a production app, you'd blacklist the refresh token here
-        // For now, we just return success - client should delete tokens from storage
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+        if (token) {
+            const { verifyAccessToken } = await import('../../utils/jwt.js');
+            const decoded = verifyAccessToken(token);
+            if (decoded?.role?.includes('StoreOwner') && decoded._id) {
+                await StoreOwnerModel.findByIdAndUpdate(decoded._id, {
+                    $set: { storeStatus: ['Close'] },
+                });
+            }
+        }
         res.status(200).json({ message: "Logged out successfully" });
     } catch (error) {
         console.error('Error during logout:', error);

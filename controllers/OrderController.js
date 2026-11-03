@@ -2,13 +2,14 @@ import mongoose from "mongoose";
 import Cart from "../models/CartModel.js";
 import Order from "../models/OrderModel.js";
 import Product from "../models/ProductModel.js";
-import RiderModel from "../models/RiderModel.js";
+import StoreOwnerModel from "../models/StoreOwnerModel.js";
 import Card from "../models/CardModel.js";
 import Stripe from 'stripe';
-import Riders from "../models/RiderModel.js";
 import Admin from "../models/AdminModel.js";
 const stripe = new Stripe("sk_test_51QePvkArP8SrFQvbyuj6Tve2Nw504Ef9beVL24eFCUjgprmGlfnjEQpJkEChOKMlSBeK4vzoed5OJ3oUsDZeYvzC00oVh0ZEe1");
 
+const ADMIN_FEE_RATE = 0.05;
+const RIDER_FEE_RATE = 0.10;
 
 const HandlePlaceOrder = async (req, res) => {
     const session = await mongoose.startSession();
@@ -18,41 +19,74 @@ const HandlePlaceOrder = async (req, res) => {
         const { latitude, longitude, message } = req.body;
         const { userId } = req.params;
 
-
         const cart = await Cart.findOne({ userId })
-            .populate("items.productId", "title price discountPrice stock storeID")
+            .populate("items.productId", "title price discountPrice stock storeID status")
             .session(session);
 
         if (!cart || cart.items.length === 0) {
             await session.abortTransaction();
+            session.endSession();
             return res.status(404).json({ message: "Your cart is empty" });
         }
 
-        const orderItems = cart.items.map((item) => {
-            const product = item.productId;
-            const unitPrice = product.discountPrice || product.price;
+        const storeIds = [
+            ...new Set(
+                cart.items.map((item) => item.productId?.storeID?.toString()).filter(Boolean),
+            ),
+        ];
 
-            return {
+        if (storeIds.length !== 1) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({
+                message: "Cart must contain products from a single store only.",
+            });
+        }
+
+        const storeID = storeIds[0];
+        const store = await StoreOwnerModel.findById(storeID).session(session);
+        if (!store || !store.storeStatus?.includes('Open')) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "Store is closed. Cannot place order." });
+        }
+
+        const orderItems = [];
+        for (const item of cart.items) {
+            const product = item.productId;
+            if (!product || !product.status?.includes('Active')) {
+                await session.abortTransaction();
+                session.endSession();
+                return res.status(400).json({ message: `Product "${product?.title || 'item'}" is unavailable.` });
+            }
+            if (item.stock > product.stock) {
+                await session.abortTransaction();
+                session.endSession();
+                return res.status(400).json({ message: `Insufficient stock for ${product.title}.` });
+            }
+            const unitPrice = product.discountPrice || product.price;
+            orderItems.push({
                 productId: product._id,
                 quantity: item.stock,
                 price: unitPrice,
                 storeID: product.storeID,
-            };
-        });
+            });
+        }
 
-        let totalAmount = orderItems.reduce(
+        const subtotal = orderItems.reduce(
             (acc, item) => acc + item.price * item.quantity,
-            0
+            0,
         );
 
-        const riderFare = totalAmount * 0.10;
-        const adminFee = totalAmount * 0.05;
+        const riderFare = Number((subtotal * RIDER_FEE_RATE).toFixed(2));
+        const adminFee = Number((subtotal * ADMIN_FEE_RATE).toFixed(2));
+        const totalAmount = Number((subtotal + riderFare + adminFee).toFixed(2));
+        const storePayout = subtotal;
 
-        totalAmount = totalAmount + riderFare + adminFee;
-
-        const card = await Card.findOne({ userId, isDefault: true });
+        const card = await Card.findOne({ userId, isDefault: true }).session(session);
         if (!card) {
             await session.abortTransaction();
+            session.endSession();
             return res.status(400).json({
                 message: "No default payment card found. Please add or set a default card first.",
             });
@@ -69,96 +103,56 @@ const HandlePlaceOrder = async (req, res) => {
 
         if (paymentIntent.status !== "succeeded") {
             await session.abortTransaction();
+            session.endSession();
             return res.status(400).json({ message: "Payment failed" });
         }
 
-        let newOrder = new Order({
+        const newOrder = new Order({
             userId,
+            storeID,
             latitude,
             longitude,
             message,
             items: orderItems,
+            subtotal,
+            storePayout,
             totalAmount,
             riderFare,
             adminFare: adminFee,
             paymentId: paymentIntent.id,
             paymentStatus: "Paid",
-            status: "Pending",
+            status: "PendingStoreAccept",
             userLatitude: latitude,
             userLongitude: longitude,
         });
 
-        const rider = await Riders.findOne({
-            status: "Active",
-            verified: "Accepted",
-        });
-
-        if (!rider) {
-            await session.abortTransaction();
-            session.endSession();
-
-            return res.status(200).json({
-                status: "Assigning",
-                orderCreated: false,
-                message: "No rider available right now.",
-            });
-        }
-
-        newOrder.assignedRider = rider._id;
-        newOrder.riderUsername = rider.username;
-        newOrder.status = "Assigned";
-
-        newOrder.items = newOrder.items.map((item) => ({
-            ...item.toObject(),
-            riderID: rider._id,
-        }));
-
         await newOrder.save({ session });
-
-        for (const item of orderItems) {
-            await Product.findByIdAndUpdate(
-                item.productId,
-                { $inc: { stock: -item.quantity } },
-                { session }
-            );
-        }
 
         await Cart.findOneAndUpdate(
             { userId },
             { $set: { items: [] } },
-            { session }
+            { session },
         );
-
-        if (rider) {
-            await Riders.findByIdAndUpdate(
-                rider._id,
-                { $inc: { riderFare: riderFare } },
-                { session }
-            );
-        }
 
         await Admin.findOneAndUpdate(
             {},
             { $inc: { adminFare: adminFee } },
-            { session }
+            { session },
         );
 
         await session.commitTransaction();
         session.endSession();
 
         return res.status(201).json({
-            message: rider
-                ? "Order placed successfully and assigned to rider."
-                : "Order placed successfully. Waiting for rider assignment.",
+            message: "Order placed. Waiting for store to accept.",
             order: newOrder,
-            rider: rider
-                ? {
-                    id: rider._id,
-                    username: rider.username,
-                    phone: rider.phone,
-                    email: rider.email,
-                }
-                : null,
+            paymentBreakdown: {
+                subtotal,
+                storePayout,
+                adminFee,
+                riderFare,
+                totalAmount,
+            },
             paymentIntent,
         });
 
@@ -171,6 +165,95 @@ const HandlePlaceOrder = async (req, res) => {
             message: "An error occurred while placing the order.",
             error: error.message,
         });
+    }
+};
+
+const HandleStoreOrderResponse = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const { storeID, orderId } = req.params;
+        const { action } = req.body;
+
+        if (req.user?._id !== storeID) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+
+        if (!['accept', 'reject'].includes(action)) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: 'Invalid action' });
+        }
+
+        const order = await Order.findById(orderId).session(session);
+        if (!order || order.storeID?.toString() !== storeID) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        if (order.status !== 'PendingStoreAccept') {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: 'Order is not awaiting store response.' });
+        }
+
+        if (action === 'reject') {
+            if (order.paymentId) {
+                await stripe.refunds.create({ payment_intent: order.paymentId });
+            }
+            order.status = 'Cancelled';
+            order.paymentStatus = 'Unpaid';
+            await order.save({ session });
+
+            await Admin.findOneAndUpdate(
+                {},
+                { $inc: { adminFare: -(order.adminFare || 0) } },
+                { session },
+            );
+
+            await session.commitTransaction();
+            session.endSession();
+            return res.status(200).json({ message: 'Order rejected and payment refunded.', order });
+        }
+
+        for (const item of order.items) {
+            const updated = await Product.findOneAndUpdate(
+                { _id: item.productId, stock: { $gte: item.quantity } },
+                { $inc: { stock: -item.quantity, salesCount: item.quantity } },
+                { session, new: true },
+            );
+            if (!updated) {
+                await session.abortTransaction();
+                session.endSession();
+                return res.status(400).json({ message: 'Insufficient stock to accept this order.' });
+            }
+        }
+
+        order.status = 'ReadyForPickup';
+        await order.save({ session });
+
+        await StoreOwnerModel.findByIdAndUpdate(
+            storeID,
+            { $inc: { storeEarnings: order.storePayout || order.subtotal || 0 } },
+            { session },
+        );
+
+        await session.commitTransaction();
+        session.endSession();
+
+        return res.status(200).json({
+            message: 'Order accepted. Ready for rider pickup.',
+            order,
+        });
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        console.error('Store order response error:', error);
+        return res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
 };
 
@@ -416,7 +499,15 @@ const HandleUpdateOrderStatus = async (req, res) => {
         const { orderId } = req.params;
         const { status } = req.body;
 
-        const validStatuses = ["Pending", "Shipped", "Delivered", "Cancelled"];
+        const validStatuses = [
+            "Pending",
+            "PendingStoreAccept",
+            "ReadyForPickup",
+            "Assigned",
+            "Shipped",
+            "Delivered",
+            "Cancelled",
+        ];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({ message: "Invalid status" });
         }
@@ -477,5 +568,12 @@ const HandleGetRiderOrders = async (req, res) => {
 
 
 export {
-    HandlePlaceOrder, HandleGetUserOrders, HandleGetUserOrdersStore, HandleGetSingleOrder, HandleUpdateOrderStatus, HandleGetRiderOrders, HandleGetAllsUserOrdersStore,
+    HandlePlaceOrder,
+    HandleStoreOrderResponse,
+    HandleGetUserOrders,
+    HandleGetUserOrdersStore,
+    HandleGetSingleOrder,
+    HandleUpdateOrderStatus,
+    HandleGetRiderOrders,
+    HandleGetAllsUserOrdersStore,
 };

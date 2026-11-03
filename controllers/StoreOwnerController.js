@@ -356,6 +356,9 @@ const HandleUpdateStore = async (req, res) => {
         findStore.storeLatitude = storeLatitude || findStore.storeLatitude
         findStore.storeLongitude = storeLongitude || findStore.storeLongitude
         findStore.storeStatus = storeStatus || findStore.storeStatus
+        if (findStore.storeStatus?.includes('Open')) {
+            findStore.lastSeenAt = new Date();
+        }
 
         await findStore.save();
 
@@ -624,6 +627,36 @@ const HandleGetChartData = async (req, res) => {
 };
 
 
+// @PATCH /api/store/presence/:storeID
+const HandleStorePresence = async (req, res) => {
+    try {
+        const { storeID } = req.params;
+        if (req.user?._id !== storeID) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+
+        const store = await StoreOwnerModel.findById(storeID);
+        if (!store) {
+            return res.status(404).json({ message: 'Store not found' });
+        }
+
+        if (store.storeStatus?.includes('Open')) {
+            store.lastSeenAt = new Date();
+            await store.save();
+        }
+
+        res.status(200).json({
+            message: 'Presence updated',
+            storeStatus: store.storeStatus,
+            lastSeenAt: store.lastSeenAt,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
+
 export {
     HandleSignupStore,
     HandleVerifyStoreOtp,
@@ -632,5 +665,6 @@ export {
     HandleResubmitVerification,
     HandleDeleteAccount,
     HandleGetStoreDashboard,
-    HandleGetChartData
+    HandleGetChartData,
+    HandleStorePresence,
 }

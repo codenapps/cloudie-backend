@@ -24,6 +24,7 @@ import orderRoutes from './routes/OrderRouter.js';
 import CardRoutes from './routes/CardRoutes.js';
 import cookieParser from "cookie-parser";
 import PlanExpirationHelper from "./utils/PlanExpirationHelper.js";
+import { startStorePresenceMonitor } from "./utils/storePresence.js";
 import { Server } from "socket.io";
 import { createServer } from "http";
 import { ChatSocket } from "./sockets/Chat.js";
@@ -34,6 +35,7 @@ app.use(express.json());
 app.use(cookieParser());
 await connectMongoDB();
 PlanExpirationHelper().catch((err) => console.error("PlanExpirationHelper:", err));
+startStorePresenceMonitor();
 
 const httpServer = createServer(app);
 
