@@ -7,7 +7,9 @@ import {
     HandleGetSingleOrder,
     HandleUpdateOrderStatus,
     HandleGetRiderOrders,
-    HandleGetAllsUserOrdersStore
+    HandleGetAllsUserOrdersStore,
+    HandleGetAvailableRiderJobs,
+    HandleRiderAcceptOrder,
 } from "../controllers/OrderController.js";
 import { authenticateToken } from "../middleware/auth.js";
 
@@ -21,8 +23,10 @@ router.patch("/store/:storeID/:orderId/respond", HandleStoreOrderResponse);
 router.get("/user/:userId", HandleGetUserOrders);
 router.get("/store/:storeID", HandleGetUserOrdersStore);
 router.get("/order-details/:adminId", HandleGetAllsUserOrdersStore);
-router.get("/:orderId", HandleGetSingleOrder);
+router.get("/rider/:riderId/available-jobs", HandleGetAvailableRiderJobs);
+router.patch("/rider/:riderId/:orderId/accept", HandleRiderAcceptOrder);
 router.get("/rider/:riderId", HandleGetRiderOrders);
+router.get("/:orderId", HandleGetSingleOrder);
 router.patch("/:orderId/status", HandleUpdateOrderStatus);
 
 export default router;

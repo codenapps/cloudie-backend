@@ -6,6 +6,8 @@ import StoreOwnerModel from "../models/StoreOwnerModel.js";
 import Card from "../models/CardModel.js";
 import Stripe from 'stripe';
 import Admin from "../models/AdminModel.js";
+import RiderModel from "../models/RiderModel.js";
+import { haversineKm } from "../utils/geo.js";
 const stripe = new Stripe("sk_test_51QePvkArP8SrFQvbyuj6Tve2Nw504Ef9beVL24eFCUjgprmGlfnjEQpJkEChOKMlSBeK4vzoed5OJ3oUsDZeYvzC00oVh0ZEe1");
 
 const ADMIN_FEE_RATE = 0.05;
@@ -511,18 +513,219 @@ const HandleUpdateOrderStatus = async (req, res) => {
         if (!validStatuses.includes(status)) {
             return res.status(400).json({ message: "Invalid status" });
         }
-        const order = await Order.findByIdAndUpdate(
-            orderId,
-            { status },
-            { new: true }
-        );
 
+        const order = await Order.findById(orderId);
         if (!order) return res.status(404).json({ message: "Order not found" });
+
+        const previousStatus = order.status;
+        order.status = status;
+        await order.save();
+
+        if (
+            status === "Delivered" &&
+            previousStatus !== "Delivered" &&
+            order.assignedRider
+        ) {
+            await RiderModel.findByIdAndUpdate(order.assignedRider, {
+                $inc: { riderFare: order.riderFare || 0 },
+            });
+        }
 
         res.json({ message: `Order status updated to ${status}`, order });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Error updating order status", error });
+    }
+};
+
+const HandleGetAvailableRiderJobs = async (req, res) => {
+    try {
+        const { riderId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(riderId)) {
+            return res.status(400).json({ message: "Invalid Rider ID" });
+        }
+
+        if (req.user?._id !== riderId) {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+
+        const rider = await RiderModel.findById(riderId);
+        if (!rider) {
+            return res.status(404).json({ message: "Rider not found" });
+        }
+
+        if (!rider.verified?.includes("Accepted")) {
+            return res.status(403).json({ message: "Rider is not verified yet." });
+        }
+
+        if (!rider.status?.includes("Active")) {
+            return res.status(200).json({
+                jobs: [],
+                message: "Set your status to Active to see available jobs.",
+            });
+        }
+
+        const lat =
+            req.query.lat != null
+                ? parseFloat(req.query.lat)
+                : rider.riderLatitude;
+        const lng =
+            req.query.lng != null
+                ? parseFloat(req.query.lng)
+                : rider.riderLongitude;
+
+        const orders = await Order.find({
+            status: "ReadyForPickup",
+            assignedRider: null,
+        })
+            .populate("items.productId", "title price discountPrice productImage")
+            .populate(
+                "items.storeID",
+                "storeName storeLatitude storeLongitude addressLine logo",
+            )
+            .populate("storeID", "storeName storeLatitude storeLongitude addressLine logo")
+            .populate("userId", "username email phone addressLine")
+            .sort({ createdAt: -1 });
+
+        const jobs = orders.map((order) => {
+            const doc = order.toObject();
+            const store = doc.storeID || doc.items?.[0]?.storeID;
+            const storeLat = store?.storeLatitude;
+            const storeLng = store?.storeLongitude;
+            let distanceKm = null;
+            if (
+                lat != null &&
+                lng != null &&
+                !Number.isNaN(lat) &&
+                !Number.isNaN(lng) &&
+                storeLat != null &&
+                storeLng != null
+            ) {
+                distanceKm = Number(
+                    haversineKm(lat, lng, storeLat, storeLng).toFixed(2),
+                );
+            }
+            return { ...doc, distanceKm };
+        });
+
+        jobs.sort((a, b) => {
+            if (a.distanceKm == null) return 1;
+            if (b.distanceKm == null) return -1;
+            return a.distanceKm - b.distanceKm;
+        });
+
+        return res.status(200).json({ jobs });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Error fetching available jobs",
+            error: error.message,
+        });
+    }
+};
+
+const HandleRiderAcceptOrder = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const { riderId, orderId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(riderId) || !mongoose.Types.ObjectId.isValid(orderId)) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "Invalid ID" });
+        }
+
+        if (req.user?._id !== riderId) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(403).json({ message: "Forbidden" });
+        }
+
+        const rider = await RiderModel.findById(riderId).session(session);
+        if (!rider) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ message: "Rider not found" });
+        }
+
+        if (!rider.status?.includes("Active")) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "Set status to Active to accept jobs." });
+        }
+
+        if (!rider.verified?.includes("Accepted")) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(403).json({ message: "Rider is not verified yet." });
+        }
+
+        const activeDelivery = await Order.findOne({
+            assignedRider: riderId,
+            status: { $in: ["Assigned", "Shipped"] },
+        }).session(session);
+
+        if (activeDelivery) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(409).json({
+                message:
+                    "Rider cannot take multiple orders. Complete your current delivery first.",
+                code: "RIDER_ACTIVE_ORDER",
+            });
+        }
+
+        const order = await Order.findOneAndUpdate(
+            {
+                _id: orderId,
+                status: "ReadyForPickup",
+                assignedRider: null,
+            },
+            {
+                assignedRider: riderId,
+                riderUsername: rider.username,
+                status: "Assigned",
+            },
+            { new: true, session },
+        );
+
+        if (!order) {
+            const existing = await Order.findById(orderId).session(session);
+            await session.abortTransaction();
+            session.endSession();
+
+            if (!existing) {
+                return res.status(404).json({ message: "Order not found" });
+            }
+            if (existing.assignedRider) {
+                return res.status(409).json({
+                    message: "Order already accepted by another rider.",
+                    code: "ORDER_ALREADY_TAKEN",
+                });
+            }
+            return res.status(400).json({
+                message: "Order is not available for rider pickup.",
+            });
+        }
+
+        await session.commitTransaction();
+        session.endSession();
+
+        return res.status(200).json({
+            message: "Order accepted successfully.",
+            order,
+        });
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        console.error("Rider accept order error:", error);
+        return res.status(500).json({
+            message: "Internal Server Error",
+            error: error.message,
+        });
     }
 };
 
@@ -576,4 +779,6 @@ export {
     HandleUpdateOrderStatus,
     HandleGetRiderOrders,
     HandleGetAllsUserOrdersStore,
+    HandleGetAvailableRiderJobs,
+    HandleRiderAcceptOrder,
 };

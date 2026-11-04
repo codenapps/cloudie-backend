@@ -422,7 +422,7 @@ const getSingleRiderDetails = async (req, res) => {
 
         const assignedOrders = await Order.find({
             assignedRider: riderId,
-            status: { $ne: "Delivered" }
+            status: { $in: ["Assigned", "Shipped"] },
         })
             .populate("items.productId", "title price discountPrice")
             .populate("items.storeID", "storeName addressLine")
