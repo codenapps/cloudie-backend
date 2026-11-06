@@ -2,11 +2,11 @@ export const RiderLocationSocket = (io) => {
     const connectedRiders = {};
     const orderLocations = {};
 
-    io.on("connection", (socket)=>{
+    io.on("connection", (socket) => {
         const queryUserID = socket.handshake.query.userID;
         console.log("[RiderLocation] connected:", socket.id, "userID:", queryUserID);
 
-        socket.on("rider:setup",(payload = {}) => {
+        socket.on("rider:setup", (payload = {}) => {
             const riderID = payload.riderID || queryUserID;
             if (!riderID) return;
 
@@ -21,7 +21,7 @@ export const RiderLocationSocket = (io) => {
 
             socket.emit("rider:connected", { socketId: socket.id });
             console.log(`[RiderLocation] rider ${riderID} registered -> ${socket.id}`);
-        })
+        });
 
         socket.on("rider:joinOrder", (payload = {}) => {
             const { orderID, role } = payload;
@@ -42,11 +42,11 @@ export const RiderLocationSocket = (io) => {
         socket.on("rider:leaveOrder", ({ orderID }) => {
             if (!orderID) return;
             socket.leave(`order:${orderID}`);
-            delete orderLocations[orderID];
+            // Keep last location cached so late joiners still get a pin
             console.log(`[RiderLocation] socket ${socket.id} left order:${orderID}`);
         });
 
-        socket.on("rider:location", async (payload = {}) => {
+        socket.on("rider:location", (payload = {}) => {
             const { orderID, riderID, lat, lng, heading, speed, accuracy, timestamp } = payload;
 
             if (!orderID || typeof lat !== "number" || typeof lng !== "number") {
@@ -67,7 +67,8 @@ export const RiderLocationSocket = (io) => {
 
             orderLocations[orderID] = location;
 
-            socket.to(`order:${orderID}`).emit("rider:location", location);
+            // Broadcast to everyone in the order room (user + store), including late joiners via cache
+            io.to(`order:${orderID}`).emit("rider:location", location);
         });
 
         socket.on("rider:location:get", ({ orderID }) => {
@@ -89,7 +90,6 @@ export const RiderLocationSocket = (io) => {
             if (connectedRiders[riderID]) {
                 delete connectedRiders[riderID];
             }
-            if (socket.data.orderID) delete orderLocations[socket.data.orderID];
         });
 
         socket.on("disconnect", () => {
@@ -101,11 +101,8 @@ export const RiderLocationSocket = (io) => {
                 socket.to(`order:${socket.data.orderID}`).emit("rider:disconnected", {
                     orderID: socket.data.orderID,
                 });
-                delete orderLocations[socket.data.orderID];
             }
             console.log("[RiderLocation] disconnected:", socket.id);
         });
-    })
-}
-
-export { RiderLocationSocket };
+    });
+};

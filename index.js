@@ -28,6 +28,7 @@ import { startStorePresenceMonitor } from "./utils/storePresence.js";
 import { Server } from "socket.io";
 import { createServer } from "http";
 import { ChatSocket } from "./sockets/Chat.js";
+import { RiderLocationSocket } from "./sockets/RiderLocationSocket.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
@@ -102,6 +103,7 @@ const io = new Server(httpServer, {
 });
 
 ChatSocket(io);
+RiderLocationSocket(io);
 
 app.get('/', (req, res) => {
     res.send("Hello World");

@@ -280,7 +280,7 @@ const HandleUpdateProduct = async (req, res) => {
 // Query params: id (user/admin/storeOwner id), category, keyword, page, limit
 const HandleGetProducts = async (req, res) => {
   try {
-    const { category, keyword, id, lat, lng } = req.query;
+    const { category, keyword, id, lat, lng, city } = req.query;
     let { page = 1, limit = 10 } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
@@ -293,6 +293,7 @@ const HandleGetProducts = async (req, res) => {
     let isAdmin = false;
     let isStoreOwner = false;
     let userId = null;
+    let filterCity = city && String(city).trim() ? String(city).trim() : null;
 
     if (id) {
       const user = await User.findById(id);
@@ -307,6 +308,9 @@ const HandleGetProducts = async (req, res) => {
         userId = id;
       } else if (user) {
         userId = id;
+        if (!filterCity && user.city) {
+          filterCity = user.city;
+        }
       }
     }
 
@@ -349,6 +353,22 @@ const HandleGetProducts = async (req, res) => {
         ? [{ $match: { 'store.storeStatus': 'Open' } }]
         : []),
 
+      // Same-city stores only for shoppers (admin/store owner see all)
+      ...(enforceOpenStore && filterCity
+        ? [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    { $toLower: { $ifNull: ['$store.city', ''] } },
+                    filterCity.toLowerCase(),
+                  ],
+                },
+              },
+            },
+          ]
+        : []),
+
       {
         $lookup: {
           from: 'categories',
@@ -371,6 +391,7 @@ const HandleGetProducts = async (req, res) => {
             name: '$store.storeName',
             storeStatus: '$store.storeStatus',
             email: '$store.email',
+            city: '$store.city',
             storeLatitude: '$store.storeLatitude',
             storeLongitude: '$store.storeLongitude',
           },
@@ -459,7 +480,7 @@ const HandleDeleteProduct = async (req, res) => {
 // Query params: limit, id (user id for role-based filtering)
 const HandleGetBestSellers = async (req, res) => {
     try {
-        const { limit = 10, id, lat, lng } = req.query;
+        const { limit = 10, id, lat, lng, city } = req.query;
 
         const parsedLimit = parseInt(limit);
         if (isNaN(parsedLimit) || parsedLimit <= 0) {
@@ -473,6 +494,7 @@ const HandleGetBestSellers = async (req, res) => {
         // Determine user role from provided id
         let isAdmin = false;
         let isStoreOwner = false;
+        let filterCity = city && String(city).trim() ? String(city).trim() : null;
 
         if (id) {
             const user = await User.findById(id);
@@ -483,6 +505,8 @@ const HandleGetBestSellers = async (req, res) => {
                 isAdmin = true;
             } else if (storeOwner) {
                 isStoreOwner = true;
+            } else if (user && !filterCity && user.city) {
+                filterCity = user.city;
             }
         }
 
@@ -505,6 +529,21 @@ const HandleGetBestSellers = async (req, res) => {
             // Filter by storeStatus = 'Open' for regular users
             ...(enforceOpenStore
                 ? [{ $match: { 'store.storeStatus': 'Open' } }]
+                : []),
+
+            ...(enforceOpenStore && filterCity
+                ? [
+                    {
+                      $match: {
+                        $expr: {
+                          $eq: [
+                            { $toLower: { $ifNull: ['$store.city', ''] } },
+                            filterCity.toLowerCase(),
+                          ],
+                        },
+                      },
+                    },
+                  ]
                 : []),
 
             {

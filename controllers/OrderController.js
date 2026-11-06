@@ -18,7 +18,20 @@ const HandlePlaceOrder = async (req, res) => {
     session.startTransaction();
 
     try {
-        const { latitude, longitude, message } = req.body;
+        const {
+            latitude,
+            longitude,
+            message,
+            deliveryAddress,
+            addressId,
+            addressLabel,
+            addressLine,
+            city,
+            state,
+            country,
+            postalCode,
+            phone,
+        } = req.body;
         const { userId } = req.params;
 
         const cart = await Cart.findOne({ userId })
@@ -109,6 +122,17 @@ const HandlePlaceOrder = async (req, res) => {
             return res.status(400).json({ message: "Payment failed" });
         }
 
+        const snapshot = deliveryAddress || {
+            label: addressLabel || null,
+            addressLine: addressLine || null,
+            city: city || null,
+            state: state || null,
+            country: country || null,
+            postalCode: postalCode || null,
+            phone: phone || null,
+            addressId: addressId || null,
+        };
+
         const newOrder = new Order({
             userId,
             storeID,
@@ -126,6 +150,7 @@ const HandlePlaceOrder = async (req, res) => {
             status: "PendingStoreAccept",
             userLatitude: latitude,
             userLongitude: longitude,
+            deliveryAddress: snapshot,
         });
 
         await newOrder.save({ session });
@@ -269,11 +294,7 @@ const HandleGetUserOrders = async (req, res) => {
 
             .sort({ createdAt: -1 });
 
-        if (!orders.length) {
-            return res.status(200).json({ message: "No orders found for this user." });
-        }
-
-        res.status(200).json(orders);
+        res.status(200).json(orders || []);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Error retrieving orders", error });

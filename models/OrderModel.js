@@ -76,6 +76,21 @@ const OrderSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    // Snapshot of delivery address at order time (does not change if user edits profile later)
+    deliveryAddress: {
+        label: { type: String, default: null },
+        addressLine: { type: String, default: null },
+        city: { type: String, default: null },
+        state: { type: String, default: null },
+        country: { type: String, default: null },
+        postalCode: { type: String, default: null },
+        phone: { type: String, default: null },
+        addressId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'address',
+            default: null,
+        },
+    },
     latitude: {
         type: Number,
     },

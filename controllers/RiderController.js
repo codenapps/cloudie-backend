@@ -320,51 +320,64 @@ const HandleUpdateRiders = async (req, res) => {
         const w9formResult = w9form ? await cloudinary.uploader.upload(w9form.tempFilePath, {
             resource_type: 'image',
             folder: "riders-w9",
-        }) : findRider.w9form;
+        }) : null;
 
         const profileResult = profile ? await cloudinary.uploader.upload(profile.tempFilePath, {
             resource_type: 'image',
             folder: "user",
-        }) : findRider.profile_image;
+        }) : null;
 
-        findRider.username = username || findRider.username
-        findRider.phone = phone || findRider.phone
-        findRider.email = email || findRider.email
-        findRider.verified = verified || findRider.verified
-        findRider.vehicleType = vehicleType || findRider.vehicleType
-        findRider.w9form = w9formResult?.secure_url || findRider.w9form
-        findRider.profile_image = profileResult?.secure_url || findRider.profile_image
-        findRider.status = status || findRider.status
-        findRider.city = city || findRider.city
-        findRider.state = state || findRider.state
-        findRider.country = country || findRider.country
-        findRider.addressLine = addressLine || findRider.addressLine
-        findRider.postalCode = postalCode || findRider.postalCode
-        findRider.riderLongitude = riderLongitude || findRider.riderLongitude
-        findRider.riderLatitude = riderLatitude || findRider.riderLatitude
+        // Atomic $set avoids VersionError when location + status update race
+        const $set = {};
+        if (username !== undefined) $set.username = username;
+        if (phone !== undefined) $set.phone = phone;
+        if (email !== undefined) $set.email = email;
+        if (verified !== undefined) $set.verified = verified;
+        if (vehicleType !== undefined) $set.vehicleType = vehicleType;
+        if (status !== undefined) $set.status = status;
+        if (city !== undefined) $set.city = city;
+        if (state !== undefined) $set.state = state;
+        if (country !== undefined) $set.country = country;
+        if (addressLine !== undefined) $set.addressLine = addressLine;
+        if (postalCode !== undefined) $set.postalCode = postalCode;
+        if (riderLongitude !== undefined && riderLongitude !== null && riderLongitude !== '') {
+            $set.riderLongitude = Number(riderLongitude);
+        }
+        if (riderLatitude !== undefined && riderLatitude !== null && riderLatitude !== '') {
+            $set.riderLatitude = Number(riderLatitude);
+        }
+        if (w9formResult?.secure_url) $set.w9form = w9formResult.secure_url;
+        if (profileResult?.secure_url) $set.profile_image = profileResult.secure_url;
 
-        await findRider.save();
+        const updated = await RiderModel.findByIdAndUpdate(
+            riderID,
+            { $set },
+            { new: true, runValidators: true },
+        );
+
+        if (!updated) {
+            return res.status(404).json({ message: "Rider Not Found" });
+        }
 
         const token = {
-            _id: findRider._id.toString(),
-            username: findRider.username,
-            email: findRider.email,
-            role: findRider.role,
-            phone: findRider.phone,
-            vehicleType: findRider.vehicleType,
-            city: findRider.city,
-            state: findRider.state,
-            country: findRider.country,
-            addressLine: findRider.addressLine,
-            profile_image: findRider.profile_image,
-            w9form: findRider.w9form,
-            postalCode: findRider.postalCode,
-            vehicleType: findRider.vehicleType,
-            status: findRider.status,
-            verified: findRider.verified,
-            isOtpVerified: findRider.isOtpVerified,
-            riderLatitude: findRider.riderLatitude,
-            riderLongitude: findRider.riderLongitude
+            _id: updated._id.toString(),
+            username: updated.username,
+            email: updated.email,
+            role: updated.role,
+            phone: updated.phone,
+            vehicleType: updated.vehicleType,
+            city: updated.city,
+            state: updated.state,
+            country: updated.country,
+            addressLine: updated.addressLine,
+            profile_image: updated.profile_image,
+            w9form: updated.w9form,
+            postalCode: updated.postalCode,
+            status: updated.status,
+            verified: updated.verified,
+            isOtpVerified: updated.isOtpVerified,
+            riderLatitude: updated.riderLatitude,
+            riderLongitude: updated.riderLongitude
         }
 
         res.status(200).json({ message: "Rider Updated Successfully", token });
