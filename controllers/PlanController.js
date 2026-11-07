@@ -4,6 +4,7 @@ import StoreOwnerModel from "../models/StoreOwnerModel.js";
 import SubscriptionModel from "../models/SubscriptionModel.js";
 import User from "../models/User.js";
 import stripe from "../utils/StripeConfig.js";
+import { buildStoreOwnerWebSessionToken } from "../utils/storeOwnerWebSessionToken.js";
 
 
 
@@ -276,24 +277,10 @@ const HandlePurchasePlan = async (req, res) => {
                 duration: findPlan.duration,
             })
             await generateSubscription.save();
-            const token = {
-                _id: findStore._id.toString(),
-                username: findStore.username,
-                email: findStore.email,
-                password: findStore.password,
-                role: findStore.role,
-                description: findStore.description,
-                city: findStore.city,
-                state: findStore.state,
-                country: findStore.country,
-                addressLine: findStore.addressLine,
-                postalCode: findStore.postalCode,
-                status: findStore.status,
-                verified: findStore.verified,
-                isOtpVerified: findStore.isOtpVerified,
-                isSubscribed: generateSubscription ? true : false,
-                planDuration: generateSubscription ? generateSubscription.duration[0] : "No Subscription"
-            }
+            const token = await buildStoreOwnerWebSessionToken(findStore, {
+                includePassword: true,
+                subscription: generateSubscription,
+            });
             return res.status(200).json({ message: "Subsription Purchased Successfully", token })
         } else if (findOtherSub) {
             return res.status(200).json({ message: "You already have an active subscription, please wait for this to expire to purchase a different one or contact your administrator" })
@@ -335,25 +322,10 @@ const HandleSubscriptionAction = async (req, res) => {
             findSubscription.status = ["Cancelled"]
             await findSubscription.save();
             console.log(findSubscription)
-            const token = {
-                _id: findStore._id.toString(),
-                username: findStore.username,
-                email: findStore.email,
-                password: findStore.password,
-                role: findStore.role,
-                description: findStore.description,
-                city: findStore.city,
-                state: findStore.state,
-                country: findStore.country,
-                addressLine: findStore.addressLine,
-                postalCode: findStore.postalCode,
-                status: findStore.status,
-                verified: findStore.verified,
-                isOtpVerified: findStore.isOtpVerified,
-                isSubscribed: findSubscription.status.includes('Active') ? true : false,
-                planID: findSubscription ? findSubscription.planID : "",
-                planDuration: findSubscription ? findSubscription.duration[0] : "No Subscription"
-            }
+            const token = await buildStoreOwnerWebSessionToken(findStore, {
+                includePassword: true,
+                subscription: null,
+            });
 
             return res.status(200).json({ message: 'Subscription cancelled successfully', token });
 

@@ -2,10 +2,10 @@ import AdminModel from "../../models/AdminModel.js";
 import RiderModel from "../../models/RiderModel.js";
 import StoreOwnerModel from "../../models/StoreOwnerModel.js";
 import User from "../../models/User.js";
-import SubscriptionModel from "../../models/SubscriptionModel.js";
 import autoMailer from "../../utils/AutoMailer.js";
 import { generateTokens } from "../../utils/jwt.js";
 import bcrypt from "bcrypt";
+import { buildStoreOwnerWebSessionToken } from "../../utils/storeOwnerWebSessionToken.js";
 
 // @POST
 // ENDPOINT: /api/global/login
@@ -51,29 +51,9 @@ const HandleLogin = async (req, res) => {
             }
             return res.status(200).json({ message: "Logged In Successfully", token });
         } else if (findRoles.role.includes('StoreOwner')) {
-            const validatePlan = await SubscriptionModel.findOne({ storeID: findRoles._id, status: ["Active"] });
-
-            const token = {
-                _id: findRoles._id.toString(),
-                username: findRoles.storeName,
-                email: findRoles.email,
-                role: findRoles.role,
-                description: findRoles.description,
-                city: findRoles.city,
-                state: findRoles.state,
-                country: findRoles.country,
-                addressLine: findRoles.addressLine,
-                postalCode: findRoles.postalCode,
-                status: findRoles.status,
-                verified: findRoles.verified,
-                isOtpVerified: findRoles.isOtpVerified,
-                isSubscribed: validatePlan ? true : false,
-                planID: validatePlan ? validatePlan.planID : "",
-                planDuration: validatePlan ? validatePlan.duration[0] : "No Subscription",
-                storeStatus: findRoles.storeStatus,
-                accessToken,
-                refreshToken
-            }
+            const token = await buildStoreOwnerWebSessionToken(findRoles);
+            token.accessToken = accessToken;
+            token.refreshToken = refreshToken;
 
             return res.status(200).json({ message: 'Logged In Successfully', token })
         } else if (findRoles.role.includes('Rider')) {

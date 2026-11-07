@@ -8,7 +8,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "admin:seed": "node script/AdminSeed.js"
+    "admin:seed": "node script/AdminSeed.js",
+    "seed:test-data": "node script/seedTestData.js",
+    "seed:delete-test-data": "node script/deleteSeedTestData.js",
+    "seed:cart-order": "node script/seedCartAndOrder.js"
   },
   "author": "",
   "license": "ISC",

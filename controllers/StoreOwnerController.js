@@ -9,6 +9,7 @@ import ProductModel from "../models/ProductModel.js";
 import SubscriptionModel from "../models/SubscriptionModel.js";
 import OrderModel from "../models/OrderModel.js";
 import bcrypt from "bcrypt";
+import { buildStoreOwnerWebSessionToken } from "../utils/storeOwnerWebSessionToken.js";
 
 // @POST
 // /api/store/create-store
@@ -255,23 +256,7 @@ const HandleVerifyStoreOtp = async (req, res) => {
             findUser.isOtpVerified = true || findUser.isOtpVerified
             await findUser.save();
 
-            const token = {
-                _id: findUser._id.toString(),
-                username: findUser.username,
-                email: findUser.email,
-                password: findUser.password,
-                role: findUser.role,
-                description: findUser.description,
-                city: findUser.city,
-                state: findUser.state,
-                country: findUser.country,
-                phone: findUser.phone,
-                addressLine: findUser.addressLine,
-                postalCode: findUser.postalCode,
-                status: findUser.status,
-                verified: findUser.verified,
-                isOtpVerified: findUser.isOtpVerified
-            }
+            const token = await buildStoreOwnerWebSessionToken(findUser, { includePassword: true });
 
             return res.status(200).json({ message: "OTP Verified Successfully", token });
         } else {
@@ -362,25 +347,7 @@ const HandleUpdateStore = async (req, res) => {
 
         await findStore.save();
 
-        const token = {
-            _id: findStore._id.toString(),
-            username: findStore.username,
-            email: findStore.email,
-            role: findStore.role,
-            description: findStore.description,
-            city: findStore.city,
-            state: findStore.state,
-            country: findStore.country,
-            addressLine: findStore.addressLine,
-            phone: findStore.phone,
-            postalCode: findStore.postalCode,
-            status: findStore.status,
-            verified: findStore.verified,
-            isOtpVerified: findStore.isOtpVerified,
-            storeLatitude: storeLatitude,
-            storeLongitude: storeLongitude,
-            storeStatus: findStore.storeStatus,
-        }
+        const token = await buildStoreOwnerWebSessionToken(findStore);
 
         res.status(200).json({ message: "Store Updated Successfully", token });
 
@@ -451,23 +418,7 @@ const HandleResubmitVerification = async (req, res) => {
 
         await findStore.save();
 
-        const token = {
-            _id: findStore._id.toString(),
-            username: findStore.username,
-            email: findStore.email,
-            password: findStore.password,
-            role: findStore.role,
-            description: findStore.description,
-            city: findStore.city,
-            state: findStore.state,
-            country: findStore.country,
-            phone: findStore.phone,
-            addressLine: findStore.addressLine,
-            postalCode: findStore.postalCode,
-            status: findStore.status,
-            verified: findStore.verified,
-            isOtpVerified: findStore.isOtpVerified
-        }
+        const token = await buildStoreOwnerWebSessionToken(findStore, { includePassword: true });
 
         res.status(200).json({ message: "Verification Re-Submitted Successfully", token })
     } catch (error) {
