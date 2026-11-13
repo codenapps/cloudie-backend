@@ -1,6 +1,8 @@
 import express from "express";
 import { HandleCreateAdmin, HandleGetAdmin, HandleGetAllStores, HandleGetAllUsers, HandleUpdateAdmin, HandleVerfiyStore, HandleGetAdminDashboard, HandleGetChartData, HandleGetAllSubscriptions } from "../controllers/AdminController.js";
+import { HandleGetAuditLogs } from "../controllers/AuditController.js";
 import { authenticateToken } from "../middleware/auth.js";
+import { requireAdmin } from "../middleware/requireAdmin.js";
 
 const router = express.Router();
 
@@ -16,5 +18,6 @@ router.get("/get-chart-details/:adminId", HandleGetChartData);
 router.get('/admin/get-all-subscriptions', HandleGetAllSubscriptions);
 router.patch("/update-admin/:id", HandleUpdateAdmin);
 router.patch("/approve-store/:storeID", HandleVerfiyStore);
+router.get("/audit-logs", requireAdmin, HandleGetAuditLogs);
 
 export default router;

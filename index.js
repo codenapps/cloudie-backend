@@ -25,19 +25,21 @@ import CardRoutes from './routes/CardRoutes.js';
 import GeoRoutes from "./routes/GeoRoutes.js";
 import cookieParser from "cookie-parser";
 import PlanExpirationHelper from "./utils/PlanExpirationHelper.js";
-import { startStorePresenceMonitor } from "./utils/storePresence.js";
+import { startStoreOrderAcceptTimeoutMonitor } from "./utils/orderStoreAcceptTimeout.js";
 import { Server } from "socket.io";
 import { createServer } from "http";
 import { ChatSocket } from "./sockets/Chat.js";
 import { RiderLocationSocket } from "./sockets/RiderLocationSocket.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
+import { auditMiddleware } from "./middleware/auditMiddleware.js";
 
 const app = express();
+app.set("trust proxy", 1);
 app.use(express.json());
 app.use(cookieParser());
 await connectMongoDB();
 PlanExpirationHelper().catch((err) => console.error("PlanExpirationHelper:", err));
-startStorePresenceMonitor();
+startStoreOrderAcceptTimeoutMonitor();
 
 const httpServer = createServer(app);
 
@@ -65,6 +67,8 @@ app.use(cors({
 
 // Apply general rate limiter to all API routes
 app.use("/api", apiLimiter);
+app.use("/order/api", auditMiddleware);
+app.use("/api", auditMiddleware);
 
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");

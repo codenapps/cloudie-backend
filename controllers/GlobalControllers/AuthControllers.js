@@ -6,6 +6,7 @@ import autoMailer from "../../utils/AutoMailer.js";
 import { generateTokens } from "../../utils/jwt.js";
 import bcrypt from "bcrypt";
 import { buildStoreOwnerWebSessionToken } from "../../utils/storeOwnerWebSessionToken.js";
+import { setAuditActor } from "../../utils/audit/recordAudit.js";
 
 // @POST
 // ENDPOINT: /api/global/login
@@ -18,12 +19,22 @@ const HandleLogin = async (req, res) => {
             || await StoreOwnerModel.findOne({ email }) || await RiderModel.findOne({ email });
         
         if (!findRoles) {
+            setAuditActor(res, {
+                _id: null,
+                email: String(email || "").trim().toLowerCase(),
+                role: [],
+            });
             return res.status(404).json({ message: "Invalid Credentials" })
         }
 
         const match = await bcrypt.compare(password, findRoles.password);
 
         if (email != findRoles.email || !match) {
+            setAuditActor(res, {
+                _id: findRoles._id.toString(),
+                email: findRoles.email,
+                role: findRoles.role,
+            });
             return res.status(400).json({ message: "Invalid Credentials" })
         }
 
@@ -33,6 +44,12 @@ const HandleLogin = async (req, res) => {
             email: findRoles.email,
             role: findRoles.role
         };
+
+        setAuditActor(res, {
+            _id: jwtPayload._id,
+            email: jwtPayload.email,
+            role: jwtPayload.role,
+        });
 
         // Generate JWT tokens
         const { accessToken, refreshToken } = generateTokens(jwtPayload);
@@ -270,6 +287,12 @@ const HandleRefreshToken = async (req, res) => {
             return res.status(401).json({ message: "Invalid or expired refresh token" });
         }
 
+        setAuditActor(res, {
+            _id: decoded._id?.toString?.() || decoded._id,
+            email: decoded.email,
+            role: Array.isArray(decoded.role) ? decoded.role : [],
+        });
+
         // Generate new tokens with the same payload
         const jwtPayload = {
             _id: decoded._id,
@@ -300,6 +323,13 @@ const HandleLogout = async (req, res) => {
         if (token) {
             const { verifyAccessToken } = await import('../../utils/jwt.js');
             const decoded = verifyAccessToken(token);
+            if (decoded) {
+                setAuditActor(res, {
+                    _id: decoded._id?.toString?.() || decoded._id,
+                    email: decoded.email,
+                    role: Array.isArray(decoded.role) ? decoded.role : [],
+                });
+            }
             if (decoded?.role?.includes('StoreOwner') && decoded._id) {
                 await StoreOwnerModel.findByIdAndUpdate(decoded._id, {
                     $set: { storeStatus: ['Close'] },
