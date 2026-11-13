@@ -37,6 +37,22 @@ PlanExpirationHelper().catch((err) => console.error("PlanExpirationHelper:", err
 
 const httpServer = createServer(app);
 
+const allowedOrigins = (process.env.CORS_ORIGIN || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const socketCorsOrigin = (origin, callback) => {
+    // React Native / native apps usually send no Origin header
+    if (!origin) {
+        return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+    }
+    callback(new Error("Not allowed by CORS"));
+};
+
 app.use(cors({
     origin: "*",
     credentials: true,
@@ -91,7 +107,7 @@ app.use(ErrorHandler);
 const io = new Server(httpServer, {
     pingTimeout: 60000,
     cors: {
-        origin: process.env.CORS_ORIGIN,
+        origin: socketCorsOrigin,
         methods: ['GET', "POST", "PUT", "DELETE", "PATCH"],
         credentials: true
     }
