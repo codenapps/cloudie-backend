@@ -22,6 +22,7 @@ import PaymentRoutes from "./routes/PaymentRoutes.js";
 import ReviewRoutes from "./routes/ReviewRoutes.js";
 import orderRoutes from './routes/OrderRouter.js';
 import CardRoutes from './routes/CardRoutes.js';
+import GeoRoutes from "./routes/GeoRoutes.js";
 import cookieParser from "cookie-parser";
 import PlanExpirationHelper from "./utils/PlanExpirationHelper.js";
 import { startStorePresenceMonitor } from "./utils/storePresence.js";
@@ -39,6 +40,22 @@ PlanExpirationHelper().catch((err) => console.error("PlanExpirationHelper:", err
 startStorePresenceMonitor();
 
 const httpServer = createServer(app);
+
+const allowedOrigins = (process.env.CORS_ORIGIN || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const socketCorsOrigin = (origin, callback) => {
+    // React Native / native apps usually send no Origin header
+    if (!origin) {
+        return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+    }
+    callback(new Error("Not allowed by CORS"));
+};
 
 app.use(cors({
     origin: "*",
@@ -89,6 +106,7 @@ app.use('/order/api', orderRoutes);
 app.use("/api/review", ReviewRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/cards", CardRoutes);
+app.use("/api/geo", GeoRoutes);
 
 app.use(ErrorHandler);
 
@@ -96,7 +114,7 @@ app.use(ErrorHandler);
 const io = new Server(httpServer, {
     pingTimeout: 60000,
     cors: {
-        origin: process.env.CORS_ORIGIN,
+        origin: socketCorsOrigin,
         methods: ['GET', "POST", "PUT", "DELETE", "PATCH"],
         credentials: true
     }
