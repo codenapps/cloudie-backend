@@ -10,6 +10,7 @@ import {
     HandleGetAllsUserOrdersStore,
     HandleGetAvailableRiderJobs,
     HandleRiderAcceptOrder,
+    HandleReorderFromOrder,
 } from "../controllers/OrderController.js";
 import { authenticateToken } from "../middleware/auth.js";
 
@@ -26,6 +27,7 @@ router.get("/order-details/:adminId", HandleGetAllsUserOrdersStore);
 router.get("/rider/:riderId/available-jobs", HandleGetAvailableRiderJobs);
 router.patch("/rider/:riderId/:orderId/accept", HandleRiderAcceptOrder);
 router.get("/rider/:riderId", HandleGetRiderOrders);
+router.post("/:orderId/reorder", HandleReorderFromOrder);
 router.get("/:orderId", HandleGetSingleOrder);
 router.patch("/:orderId/status", HandleUpdateOrderStatus);
 

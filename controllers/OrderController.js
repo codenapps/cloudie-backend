@@ -497,6 +497,106 @@ const HandleGetAllsUserOrdersStore = async (req, res) => {
     }
 };
 
+// @POST /api/orders/:orderId/reorder
+const HandleReorderFromOrder = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const requesterId = req.user?._id?.toString?.() || req.user?._id;
+
+        if (!requesterId) {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        const orderUserId = order.userId?.toString?.() || String(order.userId);
+        if (orderUserId !== requesterId) {
+            return res.status(403).json({ message: "You can only reorder your own orders" });
+        }
+
+        if (!order.items?.length) {
+            return res.status(400).json({ message: "This order has no items to reorder" });
+        }
+
+        const store = await StoreOwnerModel.findById(order.storeID);
+        if (!store || !store.storeStatus?.includes("Open")) {
+            return res.status(400).json({
+                code: "STORE_CLOSED",
+                message: "This store is closed right now. You cannot order again until it is open.",
+            });
+        }
+
+        const cartItems = [];
+        const unavailable = [];
+
+        for (const line of order.items) {
+            const productId = line.productId?._id || line.productId;
+            const product = await Product.findById(productId);
+            const qty = line.quantity;
+
+            if (!product || !product.status?.includes("Active")) {
+                unavailable.push(product?.title || "Unavailable item");
+                continue;
+            }
+
+            if (product.storeID?.toString() !== store._id.toString()) {
+                return res.status(400).json({
+                    message: "This order cannot be reordered because the store catalog changed.",
+                });
+            }
+
+            if (qty > product.stock) {
+                return res.status(400).json({
+                    code: "INSUFFICIENT_STOCK",
+                    message: `Not enough stock for "${product.title}". Available: ${product.stock}`,
+                });
+            }
+
+            cartItems.push({
+                productId: product._id,
+                stock: qty,
+                storeID: product.storeID,
+            });
+        }
+
+        if (unavailable.length) {
+            return res.status(400).json({
+                code: "ITEMS_UNAVAILABLE",
+                message: `Some items are no longer available: ${unavailable.join(", ")}`,
+                unavailable,
+            });
+        }
+
+        if (!cartItems.length) {
+            return res.status(400).json({ message: "No items from this order are available to reorder" });
+        }
+
+        let cart = await Cart.findOne({ userId: requesterId });
+        if (!cart) {
+            cart = new Cart({ userId: requesterId, items: cartItems });
+        } else {
+            cart.items = cartItems;
+        }
+        await cart.save();
+
+        const populated = await Cart.findOne({ userId: requesterId }).populate(
+            "items.productId",
+            "title discountPrice price variations productImage galleryImages status stock storeID",
+        );
+
+        return res.status(200).json({
+            message: "Cart updated from your previous order.",
+            cart: populated,
+        });
+    } catch (error) {
+        console.error("HandleReorderFromOrder:", error);
+        return res.status(500).json({ message: "Could not reorder from this order" });
+    }
+};
+
 const HandleGetSingleOrder = async (req, res) => {
     try {
         const { orderId } = req.params;
@@ -802,4 +902,5 @@ export {
     HandleGetAllsUserOrdersStore,
     HandleGetAvailableRiderJobs,
     HandleRiderAcceptOrder,
+    HandleReorderFromOrder,
 };

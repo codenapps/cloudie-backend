@@ -37,6 +37,8 @@ const RULES = [
 
     // Orders
     { method: "POST", pattern: /^\/api\/orders\/[^/]+\/place$/, action: "order.place", category: "order" },
+    { method: "POST", pattern: /^\/api\/orders\/[^/]+\/reorder$/, action: "order.reorder", category: "order" },
+    { method: "POST", pattern: /^\/order\/api\/[^/]+\/reorder$/, action: "order.reorder", category: "order" },
     { method: "POST", pattern: /^\/order\/api\/[^/]+\/place$/, action: "order.place", category: "order" },
     { method: "PATCH", pattern: /^\/api\/orders\/store\/[^/]+\/[^/]+\/respond$/, action: "order.store_respond", category: "order" },
     { method: "PATCH", pattern: /^\/order\/api\/store\/[^/]+\/[^/]+\/respond$/, action: "order.store_respond", category: "order" },
